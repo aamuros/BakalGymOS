@@ -38,3 +38,18 @@ npm run dev
 npm run lint
 npm run build
 ```
+
+## Local Test Accounts
+
+After reseeding the local Supabase database, these accounts are available with the shared password `Test1234!`:
+
+- `owner@gymledger.local`
+- `manager@gymledger.local`
+- `frontdesk1@gymledger.local`
+- `frontdesk2@gymledger.local`
+- `accountant@gymledger.local`
+
+These two auth users also exist in the seed, but they do not have a staff role that can access the app shell:
+
+- `active.member@gymledger.local`
+- `expired.member@gymledger.local`

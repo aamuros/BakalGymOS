@@ -7,18 +7,25 @@ import {
   LogOut,
   Plus,
   ReceiptText,
+  Search,
   UserRoundCheck,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 
+import { MemberCheckInButton } from "@/app/(app)/front-desk/member-check-in-button";
 import { WalkInForm } from "@/app/(app)/front-desk/walk-in-form";
 import { StartShiftForm } from "@/app/(app)/shifts/start-shift-form";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { roleLabels, type AppRole } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+
+type FrontDeskPageProps = {
+  searchParams?: Promise<{ q?: string }>;
+};
 
 type CountResult = {
   count: number | null;
@@ -75,6 +82,42 @@ type RelatedMember = {
   member_code: string;
 };
 
+type MemberSearchRow = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  member_code: string;
+  status: "active" | "expired" | "banned" | "inactive" | "archived";
+};
+
+type MemberSubscriptionRow = {
+  id: string;
+  member_id: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  entries_used: number;
+  membership_plans: { name: string } | { name: string }[] | null;
+};
+
+type MemberPaymentRow = {
+  member_id: string;
+  amount: number | string;
+};
+
+type MemberEntryRow = {
+  member_id: string;
+  entered_at: string;
+};
+
+type MemberSearchResult = MemberSearchRow & {
+  accessStatus: "active" | "expired" | "banned";
+  balance: number;
+  currentPlan: string;
+  expiryDate: string | null;
+  lastCheckIn: string | null;
+};
+
 type ActivityItem = {
   id: string;
   title: string;
@@ -99,6 +142,13 @@ const timeFormatter = new Intl.DateTimeFormat("en-PH", {
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "full",
   timeZone: "Asia/Manila",
+});
+
+const shortDateFormatter = new Intl.DateTimeFormat("en-PH", {
+  day: "2-digit",
+  month: "short",
+  timeZone: "Asia/Manila",
+  year: "numeric",
 });
 
 const managementRoles = new Set<AppRole>(["owner", "admin", "manager"]);
@@ -139,6 +189,22 @@ function formatTime(value: string) {
   return timeFormatter.format(new Date(value));
 }
 
+function formatDate(value: string | null) {
+  if (!value) {
+    return "No expiry";
+  }
+
+  return shortDateFormatter.format(new Date(`${value}T00:00:00+08:00`));
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return "No check-ins yet";
+  }
+
+  return `${shortDateFormatter.format(new Date(value))} · ${formatTime(value)}`;
+}
+
 function sumAmounts(payments: Array<{ amount: number | string }> | null | undefined) {
   return (payments ?? []).reduce((total, payment) => total + Number(payment.amount), 0);
 }
@@ -158,11 +224,53 @@ function safeCount(result: CountResult, label: string) {
   return result.count ?? 0;
 }
 
-export default async function FrontDeskPage() {
+function getPlanName(subscription: MemberSubscriptionRow | null) {
+  const plan = subscription?.membership_plans;
+
+  if (Array.isArray(plan)) {
+    return plan[0]?.name ?? "No current plan";
+  }
+
+  return plan?.name ?? "No current plan";
+}
+
+function isCurrentSubscription(subscription: MemberSubscriptionRow | null) {
+  if (!subscription) {
+    return false;
+  }
+
+  const today = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Manila",
+    year: "numeric",
+  }).format(new Date());
+
+  return subscription.status === "active" && subscription.starts_at <= today && subscription.ends_at >= today;
+}
+
+function latestByMember<T extends { member_id: string }>(
+  rows: T[],
+  getTime: (row: T) => number,
+) {
+  return rows.reduce<Record<string, T>>((lookup, row) => {
+    const existing = lookup[row.member_id];
+
+    if (!existing || getTime(row) > getTime(existing)) {
+      lookup[row.member_id] = row;
+    }
+
+    return lookup;
+  }, {});
+}
+
+export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps) {
   const profile = await requireModuleAccess("/front-desk");
   const supabase = await createClient();
   const today = getManilaTodayRange();
   const isManagement = managementRoles.has(profile.role);
+  const params = await searchParams;
+  const memberQuery = (params?.q ?? "").trim();
 
   const [
     entriesTodayResult,
@@ -285,6 +393,86 @@ export default async function FrontDeskPage() {
   const needsReview = pendingExceptions + pendingCorrections + pendingProofs;
   const activeShift = activeShiftResult.data as ActiveShiftRow | null;
   const hasActiveShift = Boolean(activeShift);
+  let memberResults: MemberSearchResult[] = [];
+  let memberSearchError: string | null = null;
+
+  if (memberQuery) {
+    const safeMemberQuery = memberQuery.replace(/[^a-zA-Z0-9\s@.+-]/g, " ").trim();
+
+    if (safeMemberQuery) {
+      const { data: members, error: membersError } = await supabase
+        .from("members")
+        .select("id, full_name, phone, member_code, status")
+        .or(
+          `full_name.ilike.%${safeMemberQuery}%,phone.ilike.%${safeMemberQuery}%,member_code.ilike.%${safeMemberQuery}%`,
+        )
+        .order("full_name", { ascending: true })
+        .limit(6);
+
+      if (membersError) {
+        memberSearchError = membersError.message;
+      } else {
+        const memberRows = (members ?? []) as MemberSearchRow[];
+        const memberIds = memberRows.map((member) => member.id);
+
+        if (memberIds.length) {
+          const [subscriptionsResult, paymentsResult, entriesResult] = await Promise.all([
+            supabase
+              .from("member_subscriptions")
+              .select("id, member_id, starts_at, ends_at, status, entries_used, membership_plans(name)")
+              .in("member_id", memberIds)
+              .order("ends_at", { ascending: false }),
+            supabase
+              .from("payments")
+              .select("member_id, amount")
+              .in("member_id", memberIds)
+              .eq("status", "pending"),
+            supabase
+              .from("entries")
+              .select("member_id, entered_at")
+              .in("member_id", memberIds)
+              .neq("status", "voided")
+              .order("entered_at", { ascending: false }),
+          ]);
+
+          const relatedError = subscriptionsResult.error ?? paymentsResult.error ?? entriesResult.error;
+
+          if (relatedError) {
+            memberSearchError = relatedError.message;
+          } else {
+            const subscriptions = (subscriptionsResult.data ?? []) as MemberSubscriptionRow[];
+            const payments = (paymentsResult.data ?? []) as MemberPaymentRow[];
+            const entries = (entriesResult.data ?? []) as MemberEntryRow[];
+            const latestSubscriptionByMember = latestByMember(subscriptions, (row) =>
+              new Date(`${row.ends_at}T00:00:00+08:00`).getTime(),
+            );
+            const latestEntryByMember = latestByMember(entries, (row) =>
+              new Date(row.entered_at).getTime(),
+            );
+            const balanceByMember = payments.reduce<Record<string, number>>((lookup, payment) => {
+              lookup[payment.member_id] = (lookup[payment.member_id] ?? 0) + Number(payment.amount ?? 0);
+              return lookup;
+            }, {});
+
+            memberResults = memberRows.map((member) => {
+              const latestSubscription = latestSubscriptionByMember[member.id] ?? null;
+              const isBanned = member.status === "banned";
+              const isActive = !isBanned && member.status === "active" && isCurrentSubscription(latestSubscription);
+
+              return {
+                ...member,
+                accessStatus: isBanned ? "banned" : isActive ? "active" : "expired",
+                balance: balanceByMember[member.id] ?? 0,
+                currentPlan: getPlanName(latestSubscription),
+                expiryDate: latestSubscription?.ends_at ?? null,
+                lastCheckIn: latestEntryByMember[member.id]?.entered_at ?? null,
+              };
+            });
+          }
+        }
+      }
+    }
+  }
 
   const activity: ActivityItem[] = [
     ...((recentEntriesResult.data ?? []) as EntryRow[]).map((entry) => ({
@@ -360,7 +548,7 @@ export default async function FrontDeskPage() {
     },
     {
       description: "Find a member and record entry",
-      href: "/members",
+      href: "#member-check-in",
       icon: UserRoundCheck,
       label: "Member Check-In",
     },
@@ -488,6 +676,132 @@ export default async function FrontDeskPage() {
       </Card>
 
       {activeShift ? (
+        <Card className="rounded-3xl shadow-none" id="member-check-in">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+                Member Check-In
+              </p>
+              <h3 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+                Search member records
+              </h3>
+            </div>
+            <p className="text-sm font-bold text-ledger-moss">
+              Search by name, phone number, or member ID
+            </p>
+          </div>
+
+          <form action="/front-desk#member-check-in" className="relative">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ledger-moss"
+            />
+            <Input
+              className="pl-12"
+              defaultValue={memberQuery}
+              name="q"
+              placeholder="Name, phone, or member ID"
+              type="search"
+            />
+          </form>
+
+          {memberSearchError ? (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {memberSearchError}
+            </div>
+          ) : null}
+
+          <div className="mt-5 space-y-4">
+            {memberQuery && !memberSearchError && !memberResults.length ? (
+              <div className="rounded-2xl border border-dashed border-ledger-line bg-white/60 px-4 py-8 text-center">
+                <p className="font-black text-ledger-ink">No matching member</p>
+                <p className="mt-1 text-sm font-bold text-ledger-moss">
+                  Try a different name, phone number, or member ID.
+                </p>
+              </div>
+            ) : null}
+
+            {memberResults.map((member) => (
+              <div
+                className="rounded-2xl border border-ledger-line bg-white/70 p-4"
+                key={member.id}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="break-words font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                        {member.full_name}
+                      </h4>
+                      <span
+                        className={cn(
+                          "inline-flex h-8 items-center rounded-full px-3 text-xs font-black uppercase",
+                          member.accessStatus === "active" && "bg-green-100 text-green-800",
+                          member.accessStatus === "expired" && "bg-amber-100 text-amber-800",
+                          member.accessStatus === "banned" && "bg-red-100 text-red-800",
+                        )}
+                      >
+                        {member.accessStatus}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-ledger-moss">
+                      {member.member_code} · {member.phone || "No phone"}
+                    </p>
+                  </div>
+
+                  {member.accessStatus === "active" ? (
+                    <MemberCheckInButton memberId={member.id} />
+                  ) : null}
+                </div>
+
+                <dl className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <MemberFact label="Current plan" value={member.currentPlan} />
+                  <MemberFact label="Expiry date" value={formatDate(member.expiryDate)} />
+                  <MemberFact label="Balance" value={formatAmount(member.balance)} />
+                  <MemberFact label="Last check-in" value={formatDateTime(member.lastCheckIn)} />
+                  <MemberFact label="Member status" value={member.status} />
+                </dl>
+
+                {member.accessStatus === "expired" ? (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Link
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-ledger-ink px-5 py-2.5 text-sm font-bold text-ledger-paper transition hover:bg-ledger-moss"
+                      href={`/members/${member.id}`}
+                    >
+                      Renew Now
+                    </Link>
+                    <a
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-ledger-line bg-ledger-paper px-5 py-2.5 text-sm font-bold text-ledger-ink transition hover:bg-white"
+                      href="#walk-in"
+                    >
+                      Pay Walk-In
+                    </a>
+                    <a
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-ledger-line bg-ledger-paper px-5 py-2.5 text-sm font-bold text-ledger-ink transition hover:bg-white"
+                      href="#walk-in"
+                    >
+                      Record Utang
+                    </a>
+                    <Link
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
+                      href="/exceptions"
+                    >
+                      Owner Override
+                    </Link>
+                  </div>
+                ) : null}
+
+                {member.accessStatus === "banned" ? (
+                  <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-800">
+                    This member is banned. Check-in is blocked and must not be overridden at the front desk.
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      {activeShift ? (
         <Card className="rounded-3xl shadow-none" id="walk-in">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -597,6 +911,15 @@ export default async function FrontDeskPage() {
           </p>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function MemberFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-ledger-line bg-ledger-paper/70 px-4 py-3">
+      <dt className="text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-black text-ledger-ink">{value}</dd>
     </div>
   );
 }

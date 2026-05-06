@@ -1,6 +1,7 @@
 begin;
 
--- Local/demo Auth users. Password values are stored only as bcrypt hashes.
+-- Local/demo Auth users.
+-- Shared password for every seeded auth account in this file: Test1234!
 insert into auth.users (
   id,
   instance_id,
@@ -15,13 +16,13 @@ insert into auth.users (
   raw_user_meta_data
 )
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk1@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk2@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'accountant@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'active.member@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'expired.member@gymledger.local', '$2a$10$abcdefghijklmnopqrstuuE0hNJI3I5Kj8u8iYEoNO1z1m9FJ5fFa', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk1@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk2@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'accountant@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'active.member@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'expired.member@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
 on conflict (id) do nothing;
 
 insert into auth.identities (
