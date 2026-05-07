@@ -246,6 +246,8 @@ Create a `.env.local` file:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_api_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+STAFF_PIN_SESSION_SECRET=your_long_random_pin_session_secret
 ```
 
 For the included local Supabase config, the API port is configured as `55321`, but you should still use the values printed by your local Supabase CLI.

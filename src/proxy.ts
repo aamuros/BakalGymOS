@@ -14,10 +14,12 @@ const protectedRoutes: Record<ModuleHref, true> = {
   "/owner-dashboard": true,
   "/members": true,
   "/payments": true,
+  "/balances": true,
   "/entry-reconciliation": true,
   "/shifts": true,
   "/exceptions": true,
   "/reports": true,
+  "/audit-logs": true,
   "/settings": true,
 };
 
@@ -67,6 +69,10 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    if (requestedModule === "/front-desk" && request.cookies.has("gymledger_staff_pin_session")) {
+      return response;
+    }
+
     if (requestedModule || isUnauthorized) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
@@ -122,10 +128,12 @@ export const config = {
     "/owner-dashboard/:path*",
     "/members/:path*",
     "/payments/:path*",
+    "/balances/:path*",
     "/entry-reconciliation/:path*",
     "/shifts/:path*",
     "/exceptions/:path*",
     "/reports/:path*",
+    "/audit-logs/:path*",
     "/settings/:path*",
   ],
 };

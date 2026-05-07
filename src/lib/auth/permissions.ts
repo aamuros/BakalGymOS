@@ -10,6 +10,8 @@ export type AppProfile = {
   email: string | null;
   role: AppRole;
   status: "active" | "disabled";
+  accessMode?: "email" | "staff_pin";
+  staffProfileId?: string;
 };
 
 export const roleLabels: Record<AppRole, string> = {
@@ -26,10 +28,12 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/owner-dashboard",
     "/members",
     "/payments",
+    "/balances",
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
     "/reports",
+    "/audit-logs",
     "/settings",
   ],
   owner: [
@@ -37,9 +41,11 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/reports",
     "/members",
     "/payments",
+    "/balances",
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
+    "/audit-logs",
     "/settings",
     "/front-desk",
   ],
@@ -48,13 +54,14 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/owner-dashboard",
     "/members",
     "/payments",
+    "/balances",
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
     "/reports",
   ],
   front_desk: ["/front-desk", "/members", "/exceptions"],
-  accountant: ["/reports", "/payments"],
+  accountant: ["/reports", "/payments", "/balances"],
 };
 
 export function isAppRole(role: string | null | undefined): role is AppRole {

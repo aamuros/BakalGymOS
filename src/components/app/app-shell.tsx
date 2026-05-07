@@ -18,8 +18,11 @@ export function AppShell({
 }>) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const modules = getAllowedModules(profile.role);
-  const homeHref = getDefaultPathForRole(profile.role);
+  const isStaffPinMode = profile.accessMode === "staff_pin";
+  const modules = isStaffPinMode
+    ? getAllowedModules(profile.role).filter((module) => module.href === "/front-desk")
+    : getAllowedModules(profile.role);
+  const homeHref = isStaffPinMode ? "/front-desk" : getDefaultPathForRole(profile.role);
 
   const currentModule = modules.find(
     (module) => pathname === module.href || pathname.startsWith(`${module.href}/`),
@@ -86,7 +89,9 @@ export function AppShell({
             Signed in
           </p>
           <p className="mt-2 truncate text-sm font-black text-white">{profile.full_name}</p>
-          <p className="mt-1 text-xs font-bold text-ledger-paper/65">{roleLabels[profile.role]}</p>
+          <p className="mt-1 text-xs font-bold text-ledger-paper/65">
+            {isStaffPinMode ? "Front Desk PIN mode" : roleLabels[profile.role]}
+          </p>
         </div>
       </aside>
 

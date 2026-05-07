@@ -13,15 +13,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { ExpiredMemberActions } from "@/app/(app)/front-desk/expired-member-actions";
+import { GcashProofUploadForm } from "@/app/(app)/front-desk/gcash-proof-upload-form";
 import { MemberCheckInButton } from "@/app/(app)/front-desk/member-check-in-button";
 import { WalkInForm } from "@/app/(app)/front-desk/walk-in-form";
+import { EndShiftForm } from "@/app/(app)/shifts/end-shift-form";
 import { StartShiftForm } from "@/app/(app)/shifts/start-shift-form";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { roleLabels, type AppRole } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 type FrontDeskPageProps = {
   searchParams?: Promise<{ q?: string }>;
@@ -43,6 +46,24 @@ type PaymentRow = {
   members: RelatedMember | RelatedMember[] | null;
 };
 
+type GcashProofRow = {
+  id: string;
+  payment_id: string;
+  proof_status: string;
+  created_at: string;
+  payments: {
+    amount: number | string;
+    purpose: string;
+    created_at: string;
+    members: RelatedMember | RelatedMember[] | null;
+  } | {
+    amount: number | string;
+    purpose: string;
+    created_at: string;
+    members: RelatedMember | RelatedMember[] | null;
+  }[] | null;
+};
+
 type EntryRow = {
   id: string;
   guest_name: string | null;
@@ -57,6 +78,7 @@ type BalanceRow = {
   id: string;
   amount: number | string;
   customer_name: string | null;
+  member_id?: string | null;
   status: string;
   created_at: string;
 };
@@ -75,6 +97,12 @@ type ActiveShiftRow = {
   opened_at: string;
   opening_cash: number | string;
   notes: string | null;
+};
+
+type CashMovementRow = {
+  amount: number | string;
+  category: "expense" | "owner_pickup" | "cash_adjustment" | null;
+  movement_type: "cash_in" | "cash_out";
 };
 
 type RelatedMember = {
@@ -102,6 +130,11 @@ type MemberSubscriptionRow = {
 
 type MemberPaymentRow = {
   member_id: string;
+  amount: number | string;
+};
+
+type MemberBalanceRow = {
+  member_id: string | null;
   amount: number | string;
 };
 
@@ -181,6 +214,10 @@ function getMemberName(member: RelatedMember | RelatedMember[] | null, fallback 
   return value?.full_name ?? fallback;
 }
 
+function relatedOne<T>(value: T | T[] | null) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function formatAmount(value: number | string | null | undefined) {
   return pesoFormatter.format(Number(value ?? 0));
 }
@@ -207,6 +244,33 @@ function formatDateTime(value: string | null) {
 
 function sumAmounts(payments: Array<{ amount: number | string }> | null | undefined) {
   return (payments ?? []).reduce((total, payment) => total + Number(payment.amount), 0);
+}
+
+function getShiftCashSummary(
+  shift: ActiveShiftRow | null,
+  payments: PaymentRow[],
+  movements: CashMovementRow[],
+) {
+  const startingCash = Number(shift?.opening_cash ?? 0);
+  const cashSales = sumAmounts(payments);
+  const expenses = movements
+    .filter((movement) => movement.movement_type === "cash_out" && movement.category !== "owner_pickup")
+    .reduce((total, movement) => total + Number(movement.amount), 0);
+  const ownerCashPickup = movements
+    .filter((movement) => movement.movement_type === "cash_out" && movement.category === "owner_pickup")
+    .reduce((total, movement) => total + Number(movement.amount), 0);
+  const cashAdjustments = movements
+    .filter((movement) => movement.movement_type === "cash_in")
+    .reduce((total, movement) => total + Number(movement.amount), 0);
+  const expectedCash = startingCash + cashSales + cashAdjustments - expenses - ownerCashPickup;
+
+  return {
+    cashSales,
+    expectedCash,
+    expenses,
+    ownerCashPickup,
+    startingCash,
+  };
 }
 
 function purposeLabel(value: string) {
@@ -266,7 +330,7 @@ function latestByMember<T extends { member_id: string }>(
 
 export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps) {
   const profile = await requireModuleAccess("/front-desk");
-  const supabase = await createClient();
+  const supabase = profile.accessMode === "staff_pin" ? createServiceClient() : await createClient();
   const today = getManilaTodayRange();
   const isManagement = managementRoles.has(profile.role);
   const params = await searchParams;
@@ -302,7 +366,6 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
     supabase
       .from("payments")
       .select("id, amount, payment_type, purpose, status, paid_at, created_at, members(full_name, member_code)")
-      .eq("status", "completed")
       .eq("payment_type", "gcash")
       .gte("paid_at", today.startIso)
       .lt("paid_at", today.endIso),
@@ -315,7 +378,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
     supabase
       .from("exceptions")
       .select("id", { count: "exact", head: true })
-      .eq("status", "pending")
+      .in("status", ["needs_review", "pending"])
       .gte("created_at", today.startIso)
       .lt("created_at", today.endIso),
     supabase
@@ -326,10 +389,12 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
       .lt("created_at", today.endIso),
     supabase
       .from("gcash_proofs")
-      .select("id", { count: "exact", head: true })
-      .in("proof_status", ["pending_proof", "pending_review"])
+      .select("id, payment_id, proof_status, created_at, payments(amount, purpose, created_at, members(full_name, member_code))")
+      .in("proof_status", ["pending_proof", "needs_follow_up", "disputed"])
       .gte("created_at", today.startIso)
-      .lt("created_at", today.endIso),
+      .lt("created_at", today.endIso)
+      .order("created_at", { ascending: false })
+      .limit(8),
     supabase
       .from("shifts")
       .select("id, opened_at, opening_cash, notes")
@@ -373,6 +438,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
     cashPaymentsResult.error ??
     gcashPaymentsResult.error ??
     pendingBalancesResult.error ??
+    pendingProofsResult.error ??
     activeShiftResult.error ??
     recentEntriesResult.error ??
     recentPaymentsResult.error ??
@@ -386,15 +452,49 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
   const entriesToday = safeCount(entriesTodayResult, "Entries today");
   const pendingExceptions = safeCount(pendingExceptionsResult, "Pending exceptions");
   const pendingCorrections = safeCount(pendingCorrectionsResult, "Pending corrections");
-  const pendingProofs = safeCount(pendingProofsResult, "Pending GCash proofs");
+  const pendingProofRows = (pendingProofsResult.data ?? []) as GcashProofRow[];
+  const pendingProofs = pendingProofRows.length;
   const cashPayments = (cashPaymentsResult.data ?? []) as PaymentRow[];
   const gcashPayments = (gcashPaymentsResult.data ?? []) as PaymentRow[];
   const pendingBalances = (pendingBalancesResult.data ?? []) as BalanceRow[];
   const needsReview = pendingExceptions + pendingCorrections + pendingProofs;
   const activeShift = activeShiftResult.data as ActiveShiftRow | null;
   const hasActiveShift = Boolean(activeShift);
+  let activeShiftCashPayments: PaymentRow[] = [];
+  let activeShiftCashMovements: CashMovementRow[] = [];
   let memberResults: MemberSearchResult[] = [];
   let memberSearchError: string | null = null;
+
+  if (activeShift) {
+    const [shiftPaymentsResult, shiftMovementsResult] = await Promise.all([
+      supabase
+        .from("payments")
+        .select("id, amount, payment_type, purpose, status, paid_at, created_at, members(full_name, member_code)")
+        .eq("shift_id", activeShift.id)
+        .eq("payment_type", "cash")
+        .eq("status", "completed"),
+      supabase
+        .from("cash_movements")
+        .select("amount, category, movement_type")
+        .eq("shift_id", activeShift.id)
+        .eq("status", "approved"),
+    ]);
+
+    const shiftError = shiftPaymentsResult.error ?? shiftMovementsResult.error;
+
+    if (shiftError) {
+      throw new Error(shiftError.message);
+    }
+
+    activeShiftCashPayments = (shiftPaymentsResult.data ?? []) as PaymentRow[];
+    activeShiftCashMovements = (shiftMovementsResult.data ?? []) as CashMovementRow[];
+  }
+
+  const shiftCashSummary = getShiftCashSummary(
+    activeShift,
+    activeShiftCashPayments,
+    activeShiftCashMovements,
+  );
 
   if (memberQuery) {
     const safeMemberQuery = memberQuery.replace(/[^a-zA-Z0-9\s@.+-]/g, " ").trim();
@@ -416,7 +516,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
         const memberIds = memberRows.map((member) => member.id);
 
         if (memberIds.length) {
-          const [subscriptionsResult, paymentsResult, entriesResult] = await Promise.all([
+          const [subscriptionsResult, paymentsResult, balancesResult, entriesResult] = await Promise.all([
             supabase
               .from("member_subscriptions")
               .select("id, member_id, starts_at, ends_at, status, entries_used, membership_plans(name)")
@@ -428,6 +528,11 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
               .in("member_id", memberIds)
               .eq("status", "pending"),
             supabase
+              .from("walk_in_balances")
+              .select("member_id, amount")
+              .in("member_id", memberIds)
+              .eq("status", "pending"),
+            supabase
               .from("entries")
               .select("member_id, entered_at")
               .in("member_id", memberIds)
@@ -435,13 +540,15 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
               .order("entered_at", { ascending: false }),
           ]);
 
-          const relatedError = subscriptionsResult.error ?? paymentsResult.error ?? entriesResult.error;
+          const relatedError =
+            subscriptionsResult.error ?? paymentsResult.error ?? balancesResult.error ?? entriesResult.error;
 
           if (relatedError) {
             memberSearchError = relatedError.message;
           } else {
             const subscriptions = (subscriptionsResult.data ?? []) as MemberSubscriptionRow[];
             const payments = (paymentsResult.data ?? []) as MemberPaymentRow[];
+            const balances = (balancesResult.data ?? []) as MemberBalanceRow[];
             const entries = (entriesResult.data ?? []) as MemberEntryRow[];
             const latestSubscriptionByMember = latestByMember(subscriptions, (row) =>
               new Date(`${row.ends_at}T00:00:00+08:00`).getTime(),
@@ -453,6 +560,13 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
               lookup[payment.member_id] = (lookup[payment.member_id] ?? 0) + Number(payment.amount ?? 0);
               return lookup;
             }, {});
+
+            balances.forEach((balance) => {
+              if (balance.member_id) {
+                balanceByMember[balance.member_id] =
+                  (balanceByMember[balance.member_id] ?? 0) + Number(balance.amount ?? 0);
+              }
+            });
 
             memberResults = memberRows.map((member) => {
               const latestSubscription = latestSubscriptionByMember[member.id] ?? null;
@@ -620,22 +734,37 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
             </a>
           );
         })}
-        <button
-          className="flex min-h-28 cursor-not-allowed flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-left text-ledger-moss"
-          disabled
-          type="button"
-        >
-          <span className="flex items-center justify-between gap-3">
-            <span className="text-base font-black">End Shift</span>
-            <LogOut aria-hidden="true" className="size-5 shrink-0" />
-          </span>
-          <span className="text-sm font-bold leading-5">Shift close is intentionally not part of this MVP.</span>
-        </button>
+        {hasActiveShift ? (
+          <a
+            className="group flex min-h-28 flex-col justify-between rounded-2xl border border-ledger-line bg-ledger-ink p-4 text-ledger-paper shadow-ledger transition hover:-translate-y-0.5 hover:bg-ledger-moss"
+            href="#end-shift"
+          >
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-base font-black">End Shift</span>
+              <LogOut aria-hidden="true" className="size-5 shrink-0 text-ledger-lime" />
+            </span>
+            <span className="text-sm font-bold leading-5 text-ledger-paper/70">
+              Count cash and close this shift.
+            </span>
+          </a>
+        ) : (
+          <button
+            className="flex min-h-28 cursor-not-allowed flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-left text-ledger-moss"
+            disabled
+            type="button"
+          >
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-base font-black">End Shift</span>
+              <LogOut aria-hidden="true" className="size-5 shrink-0" />
+            </span>
+            <span className="text-sm font-bold leading-5">Start a shift before closing cash.</span>
+          </button>
+        )}
       </div>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card className="rounded-3xl shadow-none" id={activeShift ? "end-shift" : undefined}>
         {activeShift ? (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid gap-6 lg:grid-cols-[1fr_26rem] lg:items-start">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
                 Active Shift
@@ -647,15 +776,35 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
                 Opening cash {formatAmount(activeShift.opening_cash)}
                 {activeShift.notes ? ` · ${activeShift.notes}` : ""}
               </p>
+              <div className="mt-5 grid gap-3 rounded-2xl bg-ledger-paper/70 p-4">
+                <ShiftMetric label="Cash sales" value={formatAmount(shiftCashSummary.cashSales)} />
+                <ShiftMetric label="Expenses" value={`-${formatAmount(shiftCashSummary.expenses)}`} />
+                <ShiftMetric
+                  label="Owner cash pickup"
+                  value={`-${formatAmount(shiftCashSummary.ownerCashPickup)}`}
+                />
+                <ShiftMetric label="Expected cash" value={formatAmount(shiftCashSummary.expectedCash)} />
+              </div>
+              <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+                GCash and pending/utang entries are tracked for reporting but excluded from expected physical cash.
+              </p>
+              {isManagement ? (
+                <Link
+                  className="mt-5 inline-flex min-h-12 items-center justify-center rounded-2xl bg-ledger-ink px-5 text-sm font-black text-ledger-paper transition hover:bg-ledger-moss"
+                  href="/shifts"
+                >
+                  View shifts
+                </Link>
+              ) : null}
             </div>
-            {isManagement ? (
-              <Link
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-ledger-ink px-5 text-sm font-black text-ledger-paper transition hover:bg-ledger-moss"
-                href="/shifts"
-              >
-                View shifts
-              </Link>
-            ) : null}
+            <EndShiftForm
+              cashSales={shiftCashSummary.cashSales}
+              expectedCash={shiftCashSummary.expectedCash}
+              expenses={shiftCashSummary.expenses}
+              ownerCashPickup={shiftCashSummary.ownerCashPickup}
+              shiftId={activeShift.id}
+              startingCash={shiftCashSummary.startingCash}
+            />
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_24rem] lg:items-start">
@@ -761,34 +910,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
                   <MemberFact label="Member status" value={member.status} />
                 </dl>
 
-                {member.accessStatus === "expired" ? (
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <Link
-                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-ledger-ink px-5 py-2.5 text-sm font-bold text-ledger-paper transition hover:bg-ledger-moss"
-                      href={`/members/${member.id}`}
-                    >
-                      Renew Now
-                    </Link>
-                    <a
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-ledger-line bg-ledger-paper px-5 py-2.5 text-sm font-bold text-ledger-ink transition hover:bg-white"
-                      href="#walk-in"
-                    >
-                      Pay Walk-In
-                    </a>
-                    <a
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-ledger-line bg-ledger-paper px-5 py-2.5 text-sm font-bold text-ledger-ink transition hover:bg-white"
-                      href="#walk-in"
-                    >
-                      Record Utang
-                    </a>
-                    <Link
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
-                      href="/exceptions"
-                    >
-                      Owner Override
-                    </Link>
-                  </div>
-                ) : null}
+                {member.accessStatus === "expired" ? <ExpiredMemberActions memberId={member.id} /> : null}
 
                 {member.accessStatus === "banned" ? (
                   <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-800">
@@ -817,6 +939,50 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
             </p>
           </div>
           <WalkInForm />
+        </Card>
+      ) : null}
+
+      {activeShift && pendingProofRows.length ? (
+        <Card className="rounded-3xl shadow-none" id="gcash-proofs">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+                GCash Proofs
+              </p>
+              <h3 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+                Upload pending proof images
+              </h3>
+            </div>
+            <p className="text-sm font-bold text-ledger-moss">
+              JPEG, PNG, or WebP up to 5 MB
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {pendingProofRows.map((proof) => {
+              const payment = relatedOne(proof.payments);
+
+              return (
+                <div className="rounded-2xl border border-ledger-line bg-white/70 p-4" key={proof.id}>
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-black text-ledger-ink">
+                        {getMemberName(payment?.members ?? null, "Walk-in GCash")}
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-ledger-moss">
+                        {formatAmount(payment?.amount ?? 0)} · {purposeLabel(payment?.purpose ?? "walk_in_entry")} ·{" "}
+                        {purposeLabel(proof.proof_status)}
+                      </p>
+                    </div>
+                    <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-xs font-black uppercase text-amber-900">
+                      {purposeLabel(proof.proof_status)}
+                    </span>
+                  </div>
+                  <GcashProofUploadForm proofId={proof.id} />
+                </div>
+              );
+            })}
+          </div>
         </Card>
       ) : null}
 
@@ -907,7 +1073,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
             <ReviewRow label="GCash proof review" value={pendingProofs} />
           </div>
           <p className="mt-5 rounded-2xl bg-ledger-lime/45 p-4 text-sm font-bold leading-6 text-ledger-ink">
-            GCash proof upload and shift close are intentionally placeholders in this MVP.
+            GCash payments stay out of owner-confirmed status until management reviews the uploaded proof.
           </p>
         </Card>
       </div>
@@ -931,6 +1097,15 @@ function ReviewRow({ label, value }: { label: string; value: number }) {
       <span className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
         {value.toLocaleString("en-PH")}
       </span>
+    </div>
+  );
+}
+
+function ShiftMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm font-bold text-ledger-moss">{label}</span>
+      <span className="text-right text-sm font-black text-ledger-ink">{value}</span>
     </div>
   );
 }

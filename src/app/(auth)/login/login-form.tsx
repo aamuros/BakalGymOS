@@ -1,13 +1,13 @@
 "use client";
 
-import { LogIn } from "lucide-react";
+import { KeyRound, LogIn } from "lucide-react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login, type LoginState } from "@/app/(auth)/login/actions";
+import { login, loginWithStaffPin, type LoginState } from "@/app/(auth)/login/actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -16,6 +16,17 @@ function SubmitButton() {
     <Button className="w-full gap-2" disabled={pending} type="submit">
       <LogIn aria-hidden="true" className="size-4" />
       {pending ? "Signing in" : "Sign in"}
+    </Button>
+  );
+}
+
+function PinSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button className="w-full gap-2" disabled={pending} type="submit">
+      <KeyRound aria-hidden="true" className="size-4" />
+      {pending ? "Checking PIN" : "Enter front desk"}
     </Button>
   );
 }
@@ -39,6 +50,35 @@ export function LoginForm() {
         </p>
       ) : null}
       <SubmitButton />
+    </form>
+  );
+}
+
+export function StaffPinLoginForm() {
+  const [state, formAction] = useActionState<LoginState, FormData>(loginWithStaffPin, {});
+
+  return (
+    <form action={formAction} className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="pin">Staff PIN</Label>
+        <Input
+          autoComplete="one-time-code"
+          id="pin"
+          inputMode="numeric"
+          maxLength={8}
+          minLength={4}
+          name="pin"
+          pattern="[0-9]{4,8}"
+          required
+          type="password"
+        />
+      </div>
+      {state.error ? (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          {state.error}
+        </p>
+      ) : null}
+      <PinSubmitButton />
     </form>
   );
 }

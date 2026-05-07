@@ -1,12 +1,12 @@
 import { Dumbbell } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { LoginForm } from "@/app/(auth)/login/login-form";
+import { LoginForm, StaffPinLoginForm } from "@/app/(auth)/login/login-form";
 
 export default function LoginPage() {
   return (
     <main className="ledger-rise flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-4xl">
         <div className="mb-8 flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
             <Dumbbell aria-hidden="true" className="size-6" />
@@ -21,17 +21,31 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <Card>
-          <div className="mb-6">
-            <h2 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
-              Sign in with email
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ledger-moss">
-              Use your GymLedger staff account to continue.
-            </p>
-          </div>
-          <LoginForm />
-        </Card>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Card>
+            <div className="mb-6">
+              <h2 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                Sign in with email
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-ledger-moss">
+                Use your GymLedger admin or owner account for full access.
+              </p>
+            </div>
+            <LoginForm />
+          </Card>
+
+          <Card>
+            <div className="mb-6">
+              <h2 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                Front desk PIN
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-ledger-moss">
+                Fast staff access for front desk shift work only.
+              </p>
+            </div>
+            <StaffPinLoginForm />
+          </Card>
+        </div>
       </div>
     </main>
   );
