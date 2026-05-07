@@ -41,6 +41,22 @@
 - Recommendation: Route staff PIN money, proof, and shift reconciliation workflows through service-role-only RPCs that validate actor/staff status, active shift ownership, payment permissions, proof status transitions, row locks, and audit logging inside the database workflow.
 - Status: Fixed
 
+### High Privileged GCash Proof RPCs Missing Permission Checks
+- Area: Supabase security
+- Files: `supabase/migrations/20260507002505_gcash_proof_review_logic.sql`, `supabase/migrations/20260507052601_complete_audit_log_system.sql`, `supabase/migrations/20260507131000_staff_pin_integrity_rpc.sql`, `supabase/migrations/20260507224749_harden_gcash_security.sql`
+- Risk: Authenticated staff with a role that still matched broad front-desk or management checks could call security-definer GCash proof RPCs directly after dynamic role permissions were disabled.
+- Evidence: `rg` showed `public.mark_gcash_proof_uploaded` and `public.review_gcash_proof` were granted to `authenticated`, later altered to `security definer`, and validated `private.is_front_desk_or_management()` or `private.is_management()` without matching `private.has_permission(...)` checks. The staff PIN GCash upload RPC also lacked a `private.staff_pin_has_permission(...)` check.
+- Recommendation: Recreate the GCash proof RPCs after `private.has_permission` exists, pin `search_path`, require `record_payments` for proof upload, require `correct_payments` for owner review, and require the same record-payment permission in the staff PIN service-role GCash proof RPC.
+- Status: Fixed
+
+### Medium GCash Proof Image Route Bypassed Module Access Gate
+- Area: Supabase security
+- Files: `src/app/(app)/front-desk/gcash-proofs/[id]/image/route.ts`
+- Risk: Protected GCash proof image streaming could drift from the app's module access model because the route used a local hard-coded role set instead of the central `requireModuleAccess(...)` guard.
+- Evidence: `sed` showed the route calling `requireCurrentProfile()` and `allowedRoles.has(profile.role)` before reading `gcash_proofs` and downloading from the private `gcash-proofs` bucket.
+- Recommendation: Require `/front-desk` module access before querying proof metadata or streaming the private storage object.
+- Status: Fixed
+
 ## Fixes Applied
 
 - Removed the `/notifications` staff PIN proxy exception.
@@ -51,14 +67,18 @@
 - Added critical workflow assertions for locked subscription usage and staff PIN RPC routing.
 - Removed the staff PIN shift-close manual variance notification insert and rely on the existing `notify_cash_variance` trigger.
 - Added an actor-aware staff PIN blocked-check-in notification helper so service-role RPCs preserve `attempted_by` metadata and staff names; banned expired-member attempts now return a blocked result instead of raising after notification.
+- Added a final Supabase hardening migration that replaces the GCash proof storage upload policy, keeps proof upload/review RPCs `security definer` with `set search_path = public`, explicitly revokes default public/anon execute, and requires `record_payments` or `correct_payments` before privileged writes.
+- Added the missing staff PIN GCash proof upload permission check inside the service-role RPC.
+- Updated the protected GCash proof image route to use `requireModuleAccess("/front-desk")` before proof metadata lookup or private storage download.
+- Added critical workflow assertions for privileged GCash proof RPC permission checks and proof image module access.
 
 ## Verification After Fixes
 
-- `npm test`: Pass, 15 tests across 2 suites.
+- `npm test`: Pass, 17 tests across 2 suites.
 - `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
 - `npm run build`: Pass; Next.js still warns about multiple lockfiles and workspace root inference.
 - `supabase db lint`: Pass; no schema errors found.
-- `supabase db reset`: Blocked after all migrations applied, during `supabase/seed.sql`. The existing profile privilege-escalation trigger rejects seed profile role/status upserts because the seed runs without an authenticated owner/admin actor.
+- `supabase db reset`: All migrations applied, including `20260507224749_harden_gcash_security.sql`; blocked during `supabase/seed.sql`. The existing profile privilege-escalation trigger rejects seed profile role/status upserts because the seed runs without an authenticated owner/admin actor.
 
 ## Remaining Pilot Risks
 

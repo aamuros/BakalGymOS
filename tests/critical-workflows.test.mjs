@@ -24,6 +24,7 @@ const frontDeskActions = read("src/app/(app)/front-desk/actions.ts");
 const shiftActions = read("src/app/(app)/shifts/actions.ts");
 const exceptionActions = read("src/app/(app)/exceptions/actions.ts");
 const gcashReviewActions = read("src/app/(app)/payments/gcash-review/actions.ts");
+const gcashProofImageRoute = read("src/app/(app)/front-desk/gcash-proofs/[id]/image/route.ts");
 const notificationActions = read("src/app/(app)/notifications/actions.ts");
 const notificationsPage = read("src/app/(app)/notifications/page.tsx");
 const permissions = read("src/lib/auth/permissions.ts");
@@ -162,6 +163,28 @@ describe("security checklist", () => {
     assert.match(migrations, /allowed_mime_types = array\['image\/jpeg', 'image\/png', 'image\/webp'\]/);
     assert.match(migrations, /on storage\.objects for select/);
     assert.match(migrations, /bucket_id = 'gcash-proofs'/);
+  });
+
+  it("keeps privileged GCash proof RPCs permission checked", () => {
+    assert.match(
+      migrations,
+      /create or replace function public\.mark_gcash_proof_uploaded[\s\S]*private\.has_permission\('record_payments'\)[\s\S]*grant execute on function public\.mark_gcash_proof_uploaded/
+    );
+    assert.match(migrations, /revoke execute on function public\.mark_gcash_proof_uploaded[\s\S]*from public, anon, authenticated/);
+    assert.match(
+      migrations,
+      /create or replace function public\.review_gcash_proof[\s\S]*private\.has_permission\('correct_payments'\)[\s\S]*grant execute on function public\.review_gcash_proof/
+    );
+    assert.match(migrations, /revoke execute on function public\.review_gcash_proof\(uuid, text, text\) from public, anon, authenticated/);
+    assert.match(
+      staffPinIntegrityMigration,
+      /create or replace function public\.mark_staff_pin_gcash_proof_uploaded[\s\S]*private\.staff_pin_has_permission\(target_staff\.role, 'record_payments'\)/
+    );
+  });
+
+  it("keeps GCash proof image streaming behind module access", () => {
+    assert.match(gcashProofImageRoute, /requireModuleAccess\("\/front-desk"\)/);
+    assert.doesNotMatch(gcashProofImageRoute, /const allowedRoles = new Set/);
   });
 
   it("keeps audit logs append-only for normal users", () => {

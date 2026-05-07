@@ -1090,6 +1090,10 @@ begin
     raise exception 'Staff PIN session is not active.';
   end if;
 
+  if not private.staff_pin_has_permission(target_staff.role, 'record_payments') then
+    raise exception 'This role is not allowed to record payments.';
+  end if;
+
   if p_storage_path is null or btrim(p_storage_path) = '' then
     raise exception 'Proof storage path is required.';
   end if;
