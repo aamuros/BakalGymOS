@@ -368,7 +368,7 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
   let entriesQuery = supabase
     .from("entries")
     .select(
-      "id, member_id, guest_name, entered_at, checked_in_by, shift_id, settlement_type, subscription_id, payment_id, exception_id, status, notes, created_at, members(full_name, member_code, phone, email, status), checked_by_profile:profiles!entries_checked_in_by_fkey(full_name), payments(amount, payment_type, purpose, status, paid_at, reference_number), exceptions(exception_type, reason, amount, status, owner_note, resolution_notes), member_subscriptions(starts_at, ends_at, status, entries_used, membership_plans(name)), shifts(id, opened_at, closed_at, status, staff_profiles(employee_code, job_title, profiles(full_name)))",
+      "id, member_id, guest_name, entered_at, checked_in_by, shift_id, settlement_type, subscription_id, payment_id, exception_id, status, notes, created_at, members(full_name, member_code, phone, email, status), checked_by_profile:profiles!entries_checked_in_by_fkey(full_name), payments(amount, payment_type, purpose, status, paid_at, reference_number), exceptions!entries_exception_id_fkey(exception_type, reason, amount, status, owner_note, resolution_notes), member_subscriptions(starts_at, ends_at, status, entries_used, membership_plans(name)), shifts!entries_shift_id_fkey(id, opened_at, closed_at, status, staff_profiles!shifts_staff_profile_id_fkey(employee_code, job_title, profiles!staff_profiles_profile_id_fkey(full_name)))",
     )
     .order("entered_at", { ascending: false });
 

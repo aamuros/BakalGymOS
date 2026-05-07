@@ -18,6 +18,7 @@ const protectedRoutes: Record<ModuleHref, true> = {
   "/entry-reconciliation": true,
   "/shifts": true,
   "/exceptions": true,
+  "/notifications": true,
   "/reports": true,
   "/audit-logs": true,
   "/settings": true,
@@ -69,7 +70,10 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    if (requestedModule === "/front-desk" && request.cookies.has("gymledger_staff_pin_session")) {
+    if (
+      (requestedModule === "/front-desk" || requestedModule === "/notifications") &&
+      request.cookies.has("gymledger_staff_pin_session")
+    ) {
       return response;
     }
 
@@ -132,6 +136,7 @@ export const config = {
     "/entry-reconciliation/:path*",
     "/shifts/:path*",
     "/exceptions/:path*",
+    "/notifications/:path*",
     "/reports/:path*",
     "/audit-logs/:path*",
     "/settings/:path*",

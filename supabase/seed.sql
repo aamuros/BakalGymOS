@@ -166,7 +166,7 @@ insert into public.payments (
   notes
 )
 values
-  ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'gcash', 'membership_purchase', 1200.00, 'completed', now() - interval '3 hours', null, 'GCASH-GL-0001', 'Monthly membership purchase'),
+  ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'gcash', 'membership_purchase', 1200.00, 'staff_checked', now() - interval '3 hours', null, 'GCASH-GL-0001', 'Monthly membership purchase'),
   ('50000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'cash', 'walk_in_entry', 100.00, 'completed', now() - interval '2 hours', null, null, 'Cash walk-in'),
   ('50000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'cash', 'balance_payment', 150.00, 'pending', null, now() + interval '7 days', null, 'Utang for expired member walk-in')
 on conflict (id) do update
@@ -204,22 +204,31 @@ where id = '50000000-0000-0000-0000-000000000001';
 insert into public.exceptions (
   id,
   member_id,
+  person_name,
   exception_type,
   reason,
+  shift_id,
+  staff_profile_id,
   created_by,
   status
 )
 values (
   '70000000-0000-0000-0000-000000000001',
   '30000000-0000-0000-0000-000000000002',
-  'payment_to_follow',
+  null,
+  'pending_payment',
   'Expired member allowed to enter with payment due later.',
+  '40000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000003',
   '00000000-0000-0000-0000-000000000003',
-  'pending'
+  'needs_review'
 )
 on conflict (id) do update
 set status = excluded.status,
-    reason = excluded.reason;
+    exception_type = excluded.exception_type,
+    reason = excluded.reason,
+    shift_id = excluded.shift_id,
+    staff_profile_id = excluded.staff_profile_id;
 
 insert into public.entries (
   id,
@@ -295,7 +304,7 @@ values (
   125000,
   'GCASH-GL-0001',
   'Active Member',
-  'pending_review'
+  'staff_checked'
 )
 on conflict (id) do update
 set storage_path = excluded.storage_path,

@@ -3,6 +3,14 @@ import { modules, type ModuleHref } from "@/lib/modules";
 export const appRoles = ["owner", "manager", "front_desk", "accountant", "admin"] as const;
 
 export type AppRole = (typeof appRoles)[number];
+export type PermissionKey =
+  | "approve_exceptions"
+  | "change_rates"
+  | "correct_payments"
+  | "export_data"
+  | "manage_staff"
+  | "record_payments"
+  | "view_reports";
 
 export type AppProfile = {
   id: string;
@@ -32,6 +40,7 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
+    "/notifications",
     "/reports",
     "/audit-logs",
     "/settings",
@@ -45,6 +54,7 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
+    "/notifications",
     "/audit-logs",
     "/settings",
     "/front-desk",
@@ -58,10 +68,11 @@ const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
     "/entry-reconciliation",
     "/shifts",
     "/exceptions",
+    "/notifications",
     "/reports",
   ],
-  front_desk: ["/front-desk", "/members", "/exceptions"],
-  accountant: ["/reports", "/payments", "/balances"],
+  front_desk: ["/front-desk", "/members", "/exceptions", "/notifications"],
+  accountant: ["/reports", "/payments", "/balances", "/notifications"],
 };
 
 export function isAppRole(role: string | null | undefined): role is AppRole {
@@ -84,6 +95,42 @@ export function canManageSystemSettings(role: AppRole) {
   return role === "owner" || role === "admin";
 }
 
+export function hasBuiltInPermission(role: AppRole, permission: PermissionKey) {
+  if (role === "owner" || role === "admin") {
+    return true;
+  }
+
+  const defaults: Record<AppRole, PermissionKey[]> = {
+    accountant: ["view_reports", "export_data"],
+    admin: [
+      "record_payments",
+      "correct_payments",
+      "approve_exceptions",
+      "view_reports",
+      "manage_staff",
+      "change_rates",
+      "export_data",
+    ],
+    front_desk: ["record_payments"],
+    manager: ["record_payments", "correct_payments", "approve_exceptions", "view_reports"],
+    owner: [
+      "record_payments",
+      "correct_payments",
+      "approve_exceptions",
+      "view_reports",
+      "manage_staff",
+      "change_rates",
+      "export_data",
+    ],
+  };
+
+  return defaults[role].includes(permission);
+}
+
 export function canManageMembers(role: AppRole) {
   return role === "owner" || role === "admin" || role === "manager";
+}
+
+export function canPrintMemberCards(role: AppRole) {
+  return canManageMembers(role);
 }

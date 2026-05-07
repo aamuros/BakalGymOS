@@ -1,9 +1,12 @@
 import {
   AlertTriangle,
+  Bell,
   BadgeDollarSign,
   BarChart3,
   CalendarClock,
   ClipboardList,
+  FileClock,
+  HandCoins,
   LayoutDashboard,
   Settings,
   Users,
@@ -36,6 +39,12 @@ export const modules = [
     icon: BadgeDollarSign,
   },
   {
+    title: "Balances",
+    href: "/balances",
+    description: "Unpaid utang, partial settlements, and collection tracking.",
+    icon: HandCoins,
+  },
+  {
     title: "Entry Reconciliation",
     href: "/entry-reconciliation",
     description: "Inspect every entry and the reason access was allowed.",
@@ -54,10 +63,22 @@ export const modules = [
     icon: AlertTriangle,
   },
   {
+    title: "Notifications",
+    href: "/notifications",
+    description: "Operational alerts that need owner or staff attention.",
+    icon: Bell,
+  },
+  {
     title: "Reports",
     href: "/reports",
     description: "Revenue, attendance, and reconciliation summaries.",
     icon: BarChart3,
+  },
+  {
+    title: "Audit Logs",
+    href: "/audit-logs",
+    description: "Append-only record of critical staff and system actions.",
+    icon: FileClock,
   },
   {
     title: "Settings",

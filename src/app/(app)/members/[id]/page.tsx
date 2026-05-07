@@ -1,10 +1,13 @@
-import { CalendarDays, Edit, ReceiptText, UserCheck } from "lucide-react";
+import { CalendarDays, Edit, QrCode, ReceiptText, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 
+import { MemberCardActions } from "@/app/(app)/members/member-card-actions";
 import { Card } from "@/components/ui/card";
-import { canManageMembers } from "@/lib/auth/permissions";
+import { canManageMembers, canPrintMemberCards } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
+import { createMemberQrPayload } from "@/lib/member-qr";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,6 +20,7 @@ type MemberProfile = {
   full_name: string;
   phone: string | null;
   member_code: string;
+  qr_token: string;
   status: string;
 };
 
@@ -71,7 +75,7 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
 
   const { data: member, error: memberError } = await supabase
     .from("members")
-    .select("id, full_name, phone, member_code, status")
+    .select("id, full_name, phone, member_code, qr_token, status")
     .eq("id", id)
     .single();
 
@@ -87,17 +91,27 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
     .limit(1)
     .maybeSingle();
 
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("amount")
-    .eq("member_id", id)
-    .eq("status", "pending");
+  const { data: balances } = await supabase
+    .from("walk_in_balances")
+    .select("amount, paid_amount")
+    .eq("member_id", id);
 
   const balance =
-    payments?.reduce((total, payment) => total + Number(payment.amount ?? 0), 0) ?? 0;
+    balances?.reduce(
+      (total, entry) => total + Math.max(Number(entry.amount ?? 0) - Number(entry.paid_amount ?? 0), 0),
+      0,
+    ) ?? 0;
   const canEdit = canManageMembers(profile.role);
+  const canPrintCard = canPrintMemberCards(profile.role);
   const memberProfile = member as MemberProfile;
   const latestSubscription = (subscription as Subscription | null) ?? null;
+  const gymName = "GymLedger";
+  const qrPayload = createMemberQrPayload(memberProfile.qr_token);
+  const qrCodeDataUrl = await QRCode.toDataURL(qrPayload, {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    scale: 7,
+  });
 
   return (
     <div className="ledger-rise space-y-6">
@@ -199,6 +213,87 @@ export default async function MemberProfilePage({ params }: MemberProfilePagePro
           </dl>
         </Card>
       </div>
+
+      <Card className="member-card-print rounded-3xl shadow-none">
+        <div className="grid gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
+          <div
+            className="member-card-print-card overflow-hidden rounded-3xl border border-ledger-line bg-white"
+            id={`member-card-${memberProfile.id}`}
+          >
+            <div className="bg-ledger-ink px-5 py-4 text-ledger-paper">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-ledger-lime">
+                {gymName}
+              </p>
+              <h3 className="mt-1 font-[var(--font-heading)] text-2xl font-black">
+                Member Card
+              </h3>
+            </div>
+            <div className="p-5">
+              <div className="rounded-2xl border border-ledger-line bg-white p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={`${memberProfile.full_name} member QR code`} className="mx-auto size-56" src={qrCodeDataUrl} />
+              </div>
+              <dl className="mt-5 space-y-3">
+                <div>
+                  <dt className="text-xs font-black uppercase tracking-[0.16em] text-ledger-moss">
+                    Member name
+                  </dt>
+                  <dd className="mt-1 break-words font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                    {memberProfile.full_name}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-xs font-black uppercase tracking-[0.16em] text-ledger-moss">
+                      Member ID
+                    </dt>
+                    <dd className="mt-1 font-black text-ledger-ink">{memberProfile.member_code}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-black uppercase tracking-[0.16em] text-ledger-moss">
+                      Expiry
+                    </dt>
+                    <dd className="mt-1 font-black text-ledger-ink">
+                      {formatDate(latestSubscription?.ends_at)}
+                    </dd>
+                  </div>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="print:hidden">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-ledger-lime text-ledger-ink">
+                <QrCode aria-hidden="true" className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+                  QR member card
+                </p>
+                <h3 className="mt-1 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                  Fast front-desk check-in
+                </h3>
+              </div>
+            </div>
+            <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+              The QR code stores a random card token only. Staff still need front desk access and an active shift before check-in is allowed.
+            </p>
+            {canPrintCard ? (
+              <div className="mt-5 print:hidden">
+                <MemberCardActions
+                  cardElementId={`member-card-${memberProfile.id}`}
+                  memberName={memberProfile.full_name}
+                />
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 print:hidden">
+                Only owner, admin, or manager roles can print or download member cards.
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="rounded-3xl shadow-none">

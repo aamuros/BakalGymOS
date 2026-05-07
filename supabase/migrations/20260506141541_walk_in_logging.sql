@@ -2,6 +2,8 @@ alter type public.entry_status add value if not exists 'settled';
 alter type public.entry_status add value if not exists 'pending';
 alter type public.entry_status add value if not exists 'gcash_pending_review';
 
+alter type public.payment_status add value if not exists 'pending_proof';
+
 alter type public.proof_status add value if not exists 'pending_proof';
 
 alter table public.entries
@@ -162,7 +164,10 @@ begin
       p_payment_method::public.payment_type,
       'walk_in_entry',
       p_amount,
-      'completed',
+      case
+        when p_payment_method = 'gcash' then 'pending_proof'::public.payment_status
+        else 'completed'::public.payment_status
+      end,
       now(),
       clean_note
     )

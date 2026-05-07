@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, Menu, X } from "lucide-react";
+import { Bell, Dumbbell, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 
 export function AppShell({
   children,
+  notificationCount,
   profile,
 }: Readonly<{
   children: React.ReactNode;
+  notificationCount: number;
   profile: AppProfile;
 }>) {
   const pathname = usePathname();
@@ -116,6 +118,18 @@ export function AppShell({
               </h1>
             </div>
             <div className="flex items-center gap-3">
+              <Link
+                aria-label={`${notificationCount} unread notifications`}
+                className="relative inline-flex size-12 items-center justify-center rounded-2xl border border-ledger-line bg-white/80 text-ledger-ink transition hover:bg-white"
+                href="/notifications"
+              >
+                <Bell aria-hidden="true" className="size-5" />
+                {notificationCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-black text-white">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                ) : null}
+              </Link>
               <LogoutButton />
               <button
                 aria-label="Open navigation"

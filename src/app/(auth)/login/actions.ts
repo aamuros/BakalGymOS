@@ -49,7 +49,7 @@ export async function loginWithStaffPin(
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("staff_profiles")
-    .select("id, profile_id, status, pin_hash, profiles(id, role, status)")
+    .select("id, profile_id, status, pin_hash, profiles!staff_profiles_profile_id_fkey(id, role, status)")
     .not("pin_hash", "is", null)
     .eq("status", "active");
 

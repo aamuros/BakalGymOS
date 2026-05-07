@@ -38,3 +38,29 @@ body {
 .ledger-rise {
   animation: ledger-rise 420ms ease-out both;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .member-card-print,
+  .member-card-print * {
+    visibility: visible;
+  }
+
+  .member-card-print {
+    border: 0 !important;
+    box-shadow: none !important;
+    left: 0;
+    padding: 0 !important;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .member-card-print-card {
+    max-width: 3.375in;
+    page-break-inside: avoid;
+  }
+}

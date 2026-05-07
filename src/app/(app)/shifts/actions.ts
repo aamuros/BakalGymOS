@@ -134,7 +134,7 @@ export async function closeShift(input: CloseShiftValues): Promise<ActionResult>
     const supabase = createServiceClient();
     const { data: targetShift, error: shiftError } = await supabase
       .from("shifts")
-      .select("id, opening_cash, status, closed_at, staff_profile_id, staff_profiles(profile_id, can_close_shift, status)")
+      .select("id, opening_cash, status, closed_at, staff_profile_id, staff_profiles!shifts_staff_profile_id_fkey(profile_id, can_close_shift, status)")
       .eq("id", parsed.data.shift_id)
       .maybeSingle();
 

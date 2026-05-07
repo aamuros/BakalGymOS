@@ -9,7 +9,9 @@ import {
   type ExpiredMemberActionValues,
 } from "@/app/(app)/front-desk/expired-member-schema";
 import { walkInSchema, type WalkInValues } from "@/app/(app)/front-desk/walk-in-schema";
+import { hasConfiguredPermission } from "@/lib/auth/configured-permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
+import { createBlockedCheckInNotifications } from "@/lib/notifications";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 type ActionResult = {
@@ -107,6 +109,12 @@ async function getActivePinShift(profile: FrontDeskProfile, supabase = createSer
 }
 
 async function createWalkInWithPin(profile: FrontDeskProfile, input: WalkInValues): Promise<ActionResult> {
+  const canRecordPayments = await hasConfiguredPermission(profile.role, "record_payments");
+
+  if (!canRecordPayments) {
+    return { error: "This role is not allowed to record payments." };
+  }
+
   const parsed = walkInSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -253,6 +261,11 @@ async function createWalkInWithPin(profile: FrontDeskProfile, input: WalkInValue
 
 export async function createWalkIn(input: WalkInValues): Promise<ActionResult> {
   const profile = await requireModuleAccess("/front-desk");
+  const canRecordPayments = await hasConfiguredPermission(profile.role, "record_payments");
+
+  if (!canRecordPayments) {
+    return { error: "This role is not allowed to record payments." };
+  }
 
   if (profile.accessMode === "staff_pin") {
     return createWalkInWithPin(profile, input);
@@ -307,7 +320,7 @@ export async function handleExpiredMemberEntry(
 
       const { data: member, error: memberError } = await supabase
         .from("members")
-        .select("id, full_name, status")
+        .select("id, full_name, member_code, status")
         .eq("id", parsed.data.memberId)
         .maybeSingle();
 
@@ -316,6 +329,14 @@ export async function handleExpiredMemberEntry(
       }
 
       if (member.status === "banned") {
+        await createBlockedCheckInNotifications({
+          attemptedByProfileId: profile.id,
+          memberCode: member.member_code,
+          memberId: member.id,
+          memberName: member.full_name,
+          reason: "banned_member",
+        });
+
         return { error: "Banned members cannot be checked in or overridden at the front desk." };
       }
 
@@ -569,7 +590,7 @@ export async function checkInActiveMember(memberId: string): Promise<ActionResul
 
       const { data: member, error: memberError } = await supabase
         .from("members")
-        .select("id, status")
+        .select("id, full_name, member_code, status")
         .eq("id", parsed.data.memberId)
         .maybeSingle();
 
@@ -578,6 +599,14 @@ export async function checkInActiveMember(memberId: string): Promise<ActionResul
       }
 
       if (member.status === "banned") {
+        await createBlockedCheckInNotifications({
+          attemptedByProfileId: profile.id,
+          memberCode: member.member_code,
+          memberId: member.id,
+          memberName: member.full_name,
+          reason: "banned_member",
+        });
+
         return { error: "Banned members cannot be checked in." };
       }
 
@@ -601,6 +630,14 @@ export async function checkInActiveMember(memberId: string): Promise<ActionResul
         : subscription?.membership_plans;
 
       if (!subscription || (!plan?.is_unlimited && subscription.entries_used >= Number(plan?.entry_limit ?? 0))) {
+        await createBlockedCheckInNotifications({
+          attemptedByProfileId: profile.id,
+          memberCode: member.member_code,
+          memberId: member.id,
+          memberName: member.full_name,
+          reason: "expired_member",
+        });
+
         return { error: "This member is expired. Choose Pay Walk-In, Record Utang, or Owner Override." };
       }
 
@@ -745,7 +782,7 @@ export async function uploadGcashProof(formData: FormData): Promise<ActionResult
             file_size: proofImage.size,
             gcash_reference_number: parsed.data.referenceNumber || null,
             mime_type: proofImage.type,
-            proof_status: "pending_review",
+            proof_status: "staff_checked",
             sender_mobile: parsed.data.senderMobile || null,
             sender_name: parsed.data.senderName || null,
             storage_path: storagePath,
@@ -767,6 +804,16 @@ export async function uploadGcashProof(formData: FormData): Promise<ActionResult
   }
 
   if (profile.accessMode === "staff_pin") {
+    const { error: paymentStatusError } = await supabase
+      .from("payments")
+      .update({ status: "staff_checked" })
+      .eq("id", proof.payment_id)
+      .eq("payment_type", "gcash");
+
+    if (paymentStatusError) {
+      return { error: paymentStatusError.message };
+    }
+
     await supabase.from("audit_logs").insert({
       action: "staff_pin_gcash_proof_uploaded",
       action_type: "staff_pin_gcash_proof_uploaded",

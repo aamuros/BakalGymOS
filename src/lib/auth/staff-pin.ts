@@ -147,7 +147,7 @@ export async function getStaffPinSession(): Promise<StaffPinSession | null> {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("staff_profiles")
-    .select("id, profile_id, status, profiles(id, full_name, email, role, status)")
+    .select("id, profile_id, status, profiles!staff_profiles_profile_id_fkey(id, full_name, email, role, status)")
     .eq("id", payload.staffProfileId)
     .eq("profile_id", payload.profileId)
     .maybeSingle();
