@@ -19,6 +19,7 @@ function readMigrations() {
 }
 
 const migrations = readMigrations();
+const staffPinIntegrityMigration = read("supabase/migrations/20260507131000_staff_pin_integrity_rpc.sql");
 const frontDeskActions = read("src/app/(app)/front-desk/actions.ts");
 const shiftActions = read("src/app/(app)/shifts/actions.ts");
 const exceptionActions = read("src/app/(app)/exceptions/actions.ts");
@@ -63,6 +64,14 @@ describe("critical workflow safeguards", () => {
     assert.match(migrations, /create or replace function public\.mark_staff_pin_gcash_proof_uploaded/);
     assert.match(migrations, /create or replace function public\.close_staff_pin_shift_reconciliation/);
     assert.match(migrations, /target_proof\.proof_status not in \('pending_proof', 'needs_follow_up', 'disputed'\)/);
+  });
+
+  it("keeps staff PIN notifications actor-safe and non-duplicated", () => {
+    assert.match(staffPinIntegrityMigration, /create or replace function private\.notify_staff_pin_member_check_in_blocked/);
+    assert.match(staffPinIntegrityMigration, /p_actor_id uuid/);
+    assert.doesNotMatch(staffPinIntegrityMigration, /perform private\.notify_member_check_in_blocked\(/);
+    assert.doesNotMatch(staffPinIntegrityMigration, /if variance_value <> 0 then\s+insert into public\.notifications/);
+    assert.match(staffPinIntegrityMigration, /'banned_member'[\s\S]+return jsonb_build_object\(\s+'status', 'blocked'/);
   });
 
   it("requires controlled expired-member handling paths", () => {

@@ -49,10 +49,12 @@
 - Added a migration that locks active member subscription usage before incrementing and adds service-role-only staff PIN RPCs for member check-in, walk-ins, expired-member handling, GCash proof upload, and shift close.
 - Updated staff PIN server actions to call the guarded RPC workflows instead of writing related records directly from TypeScript.
 - Added critical workflow assertions for locked subscription usage and staff PIN RPC routing.
+- Removed the staff PIN shift-close manual variance notification insert and rely on the existing `notify_cash_variance` trigger.
+- Added an actor-aware staff PIN blocked-check-in notification helper so service-role RPCs preserve `attempted_by` metadata and staff names; banned expired-member attempts now return a blocked result instead of raising after notification.
 
 ## Verification After Fixes
 
-- `npm test`: Pass, 14 tests across 2 suites.
+- `npm test`: Pass, 15 tests across 2 suites.
 - `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
 - `npm run build`: Pass; Next.js still warns about multiple lockfiles and workspace root inference.
 - `supabase db lint`: Pass; no schema errors found.

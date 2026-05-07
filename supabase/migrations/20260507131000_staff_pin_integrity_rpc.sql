@@ -23,6 +23,59 @@ as $$
   )
 $$;
 
+create or replace function private.notify_staff_pin_member_check_in_blocked(
+  p_actor_id uuid,
+  p_member_id uuid,
+  p_reason text,
+  p_message text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_member record;
+  actor_name text;
+  notification_kind public.notification_type;
+  title_text text;
+begin
+  select id, full_name, member_code, status
+  into target_member
+  from public.members
+  where id = p_member_id;
+
+  select full_name into actor_name from public.profiles where id = p_actor_id;
+
+  if p_reason = 'banned_member' then
+    notification_kind := 'banned_member_check_in_attempt'::public.notification_type;
+    title_text := 'Banned member check-in attempt';
+  elsif p_reason in ('expired_or_missing_active_subscription', 'entry_limit_reached') then
+    notification_kind := 'expired_member_entry_attempt'::public.notification_type;
+    title_text := 'Expired member tried to enter';
+  else
+    return;
+  end if;
+
+  perform private.notify_active_roles(
+    array['owner'::public.app_role, 'admin'::public.app_role, 'manager'::public.app_role],
+    notification_kind,
+    title_text,
+    format('%s attempted check-in for %s. %s', coalesce(actor_name, 'Staff'), coalesce(target_member.full_name, 'Unknown member'), p_message),
+    'members',
+    p_member_id,
+    case when p_member_id is null then '/front-desk' else '/members/' || p_member_id::text end,
+    jsonb_build_object(
+      'member_id', p_member_id,
+      'member_code', target_member.member_code,
+      'reason', p_reason,
+      'attempted_by', p_actor_id
+    ),
+    notification_kind::text || ':' || coalesce(p_member_id::text, gen_random_uuid()::text) || ':' || to_char(now(), 'YYYYMMDDHH24MI')
+  );
+end;
+$$;
+
 create or replace function public.create_member_check_in(p_member_id uuid)
 returns jsonb
 language plpgsql
@@ -87,7 +140,8 @@ begin
       'blocked',
       'banned_member'
     );
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      auth.uid(),
       target_member.id,
       'banned_member',
       'Banned members cannot be checked in.'
@@ -123,7 +177,8 @@ begin
       'blocked',
       'expired_or_missing_active_subscription'
     );
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      auth.uid(),
       target_member.id,
       'expired_or_missing_active_subscription',
       'This member is expired or has no active subscription.'
@@ -144,7 +199,8 @@ begin
       'blocked',
       'entry_limit_reached'
     );
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      auth.uid(),
       target_member.id,
       'entry_limit_reached',
       'This member has no remaining entries.'
@@ -281,7 +337,8 @@ begin
       jsonb_build_object('result', 'blocked', 'reason', 'banned_member')
     );
 
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      p_actor_id,
       target_member.id,
       'banned_member',
       'Banned members cannot be checked in.'
@@ -323,7 +380,8 @@ begin
       jsonb_build_object('result', 'blocked', 'reason', 'expired_or_missing_active_subscription')
     );
 
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      p_actor_id,
       target_member.id,
       'expired_or_missing_active_subscription',
       'This member is expired or has no active subscription.'
@@ -350,7 +408,8 @@ begin
       jsonb_build_object('result', 'blocked', 'reason', 'entry_limit_reached')
     );
 
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      p_actor_id,
       target_member.id,
       'entry_limit_reached',
       'This member has no remaining entries.'
@@ -706,12 +765,43 @@ begin
   end if;
 
   if target_member.status = 'banned' then
-    perform private.notify_member_check_in_blocked(
+    perform private.notify_staff_pin_member_check_in_blocked(
+      p_actor_id,
       target_member.id,
       'banned_member',
       'Banned members cannot be checked in or overridden at the front desk.'
     );
-    raise exception 'Banned members cannot be checked in or overridden at the front desk.';
+
+    insert into public.audit_logs (
+      actor_id,
+      action,
+      action_type,
+      entity_table,
+      entity_type,
+      entity_id,
+      new_data
+    )
+    values (
+      p_actor_id,
+      'staff_pin_expired_member_blocked',
+      'staff_pin_expired_member_blocked',
+      'members',
+      'members',
+      target_member.id,
+      jsonb_build_object(
+        'result', 'blocked',
+        'reason', 'banned_member',
+        'member_id', target_member.id,
+        'shift_id', active_shift.id,
+        'staff_profile_id', target_staff.id
+      )
+    );
+
+    return jsonb_build_object(
+      'status', 'blocked',
+      'reason', 'banned_member',
+      'message', 'Banned members cannot be checked in or overridden at the front desk.'
+    );
   end if;
 
   if target_member.status not in ('active'::public.member_status, 'inactive'::public.member_status) then
@@ -1240,27 +1330,6 @@ begin
     )
   );
 
-  if variance_value <> 0 then
-    insert into public.notifications (
-      recipient_id,
-      notification_type,
-      title,
-      body,
-      entity_table,
-      entity_id
-    )
-    select
-      p.id,
-      'shift_discrepancy'::public.notification_type,
-      'Shift variance needs review',
-      format('Shift %s closed with a cash variance of %s.', target_shift.id, variance_value),
-      'shifts',
-      target_shift.id
-    from public.profiles p
-    where p.status = 'active'
-      and p.role in ('owner', 'admin');
-  end if;
-
   return jsonb_build_object(
     'shift_id', target_shift.id,
     'starting_cash', target_shift.opening_cash,
@@ -1276,6 +1345,7 @@ end;
 $$;
 
 revoke execute on function private.staff_pin_has_permission(public.app_role, text) from public, authenticated, anon;
+revoke execute on function private.notify_staff_pin_member_check_in_blocked(uuid, uuid, text, text) from public, authenticated, anon;
 
 revoke execute on function public.create_staff_pin_member_check_in(uuid, uuid, uuid) from public, authenticated, anon;
 revoke execute on function public.create_staff_pin_walk_in(uuid, uuid, text, numeric, text, text) from public, authenticated, anon;

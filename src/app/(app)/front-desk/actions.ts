@@ -141,7 +141,7 @@ export async function handleExpiredMemberEntry(
 
     const supabase = createServiceClient();
 
-    const { error } = await supabase.rpc("handle_staff_pin_expired_member_entry", {
+    const { data, error } = await supabase.rpc("handle_staff_pin_expired_member_entry", {
       p_action_type: parsed.data.action_type,
       p_actor_id: profile.id,
       p_amount: parsed.data.action_type === "owner_override" ? null : parsed.data.amount,
@@ -153,6 +153,12 @@ export async function handleExpiredMemberEntry(
 
     if (error) {
       return { error: error.message };
+    }
+
+    const result = data as MemberCheckInRpcResult | null;
+
+    if (result?.status === "blocked") {
+      return { error: result.message ?? "Expired member entry was blocked." };
     }
 
     revalidatePath("/front-desk");
