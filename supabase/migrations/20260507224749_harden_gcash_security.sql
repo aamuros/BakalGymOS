@@ -11,6 +11,32 @@ with check (
   and lower((storage.extension(name))) in ('jpg', 'jpeg', 'png', 'webp')
 );
 
+drop policy if exists "gcash proofs storage update management" on storage.objects;
+create policy "gcash proofs storage update management"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'gcash-proofs'
+  and private.current_app_role() in ('owner', 'admin', 'manager')
+  and private.has_permission('correct_payments')
+)
+with check (
+  bucket_id = 'gcash-proofs'
+  and private.current_app_role() in ('owner', 'admin', 'manager')
+  and private.has_permission('correct_payments')
+  and lower((storage.extension(name))) in ('jpg', 'jpeg', 'png', 'webp')
+);
+
+drop policy if exists "gcash proofs storage delete management" on storage.objects;
+create policy "gcash proofs storage delete management"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'gcash-proofs'
+  and private.current_app_role() in ('owner', 'admin', 'manager')
+  and private.has_permission('correct_payments')
+);
+
 create or replace function public.mark_gcash_proof_uploaded(
   p_proof_id uuid,
   p_storage_path text,

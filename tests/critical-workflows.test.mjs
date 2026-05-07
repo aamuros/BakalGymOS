@@ -182,6 +182,17 @@ describe("security checklist", () => {
     );
   });
 
+  it("keeps GCash proof storage mutations dynamically permission checked", () => {
+    assert.match(
+      migrations,
+      /drop policy if exists "gcash proofs storage update management" on storage\.objects[\s\S]*create policy "gcash proofs storage update management"[\s\S]*on storage\.objects for update[\s\S]*private\.has_permission\('correct_payments'\)/
+    );
+    assert.match(
+      migrations,
+      /drop policy if exists "gcash proofs storage delete management" on storage\.objects[\s\S]*create policy "gcash proofs storage delete management"[\s\S]*on storage\.objects for delete[\s\S]*private\.has_permission\('correct_payments'\)/
+    );
+  });
+
   it("keeps GCash proof image streaming behind module access", () => {
     assert.match(gcashProofImageRoute, /requireModuleAccess\("\/front-desk"\)/);
     assert.doesNotMatch(gcashProofImageRoute, /const allowedRoles = new Set/);

@@ -57,6 +57,14 @@
 - Recommendation: Require `/front-desk` module access before querying proof metadata or streaming the private storage object.
 - Status: Fixed
 
+### Medium GCash Proof Storage Mutations Used Static Role Checks
+- Area: Supabase security
+- Files: `supabase/migrations/20260506000200_gcash_storage.sql`, `supabase/migrations/20260507224749_harden_gcash_security.sql`
+- Risk: Authenticated owner/admin/manager users could call Supabase Storage APIs directly to replace or delete GCash proof files even after dynamic payment-correction permission was disabled for their role.
+- Evidence: `sed` showed `gcash proofs storage update management` and `gcash proofs storage delete management` policies checking only `private.current_app_role() in ('owner', 'admin', 'manager')`.
+- Recommendation: Replace the storage update/delete policies after `private.has_permission` exists and require `private.has_permission('correct_payments')` for file mutation.
+- Status: Fixed
+
 ## Fixes Applied
 
 - Removed the `/notifications` staff PIN proxy exception.
@@ -67,14 +75,14 @@
 - Added critical workflow assertions for locked subscription usage and staff PIN RPC routing.
 - Removed the staff PIN shift-close manual variance notification insert and rely on the existing `notify_cash_variance` trigger.
 - Added an actor-aware staff PIN blocked-check-in notification helper so service-role RPCs preserve `attempted_by` metadata and staff names; banned expired-member attempts now return a blocked result instead of raising after notification.
-- Added a final Supabase hardening migration that replaces the GCash proof storage upload policy, keeps proof upload/review RPCs `security definer` with `set search_path = public`, explicitly revokes default public/anon execute, and requires `record_payments` or `correct_payments` before privileged writes.
+- Added a final Supabase hardening migration that replaces the GCash proof storage upload/update/delete policies, keeps proof upload/review RPCs `security definer` with `set search_path = public`, explicitly revokes default public/anon execute, and requires `record_payments` or `correct_payments` before privileged writes.
 - Added the missing staff PIN GCash proof upload permission check inside the service-role RPC.
 - Updated the protected GCash proof image route to use `requireModuleAccess("/front-desk")` before proof metadata lookup or private storage download.
-- Added critical workflow assertions for privileged GCash proof RPC permission checks and proof image module access.
+- Added critical workflow assertions for privileged GCash proof RPC permission checks, storage mutation permission checks, and proof image module access.
 
 ## Verification After Fixes
 
-- `npm test`: Pass, 17 tests across 2 suites.
+- `npm test`: Pass, 18 tests across 2 suites.
 - `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
 - `npm run build`: Pass; Next.js still warns about multiple lockfiles and workspace root inference.
 - `supabase db lint`: Pass; no schema errors found.
