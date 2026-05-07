@@ -16,18 +16,23 @@ import Link from "next/link";
 import { ExpiredMemberActions } from "@/app/(app)/front-desk/expired-member-actions";
 import { GcashProofUploadForm } from "@/app/(app)/front-desk/gcash-proof-upload-form";
 import { MemberCheckInButton } from "@/app/(app)/front-desk/member-check-in-button";
+import { QrScanner } from "@/app/(app)/front-desk/qr-scanner";
 import { WalkInForm } from "@/app/(app)/front-desk/walk-in-form";
 import { EndShiftForm } from "@/app/(app)/shifts/end-shift-form";
 import { StartShiftForm } from "@/app/(app)/shifts/start-shift-form";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { StateMessage } from "@/components/ui/state-message";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { roleLabels, type AppRole } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
+import { parseMemberQrPayload } from "@/lib/member-qr";
 import { cn } from "@/lib/utils";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 type FrontDeskPageProps = {
-  searchParams?: Promise<{ q?: string }>;
+  searchParams?: Promise<{ q?: string; qr?: string }>;
 };
 
 type CountResult = {
@@ -242,6 +247,22 @@ function formatDateTime(value: string | null) {
   return `${shortDateFormatter.format(new Date(value))} · ${formatTime(value)}`;
 }
 
+function getAccessTone(status: MemberSearchResult["accessStatus"]) {
+  if (status === "active") {
+    return "active";
+  }
+
+  return status === "banned" ? "danger" : "warn";
+}
+
+function getAccessLabel(status: MemberSearchResult["accessStatus"]) {
+  if (status === "active") {
+    return "OK to enter";
+  }
+
+  return status === "banned" ? "Banned - do not admit" : "Expired - collect or review";
+}
+
 function sumAmounts(payments: Array<{ amount: number | string }> | null | undefined) {
   return (payments ?? []).reduce((total, payment) => total + Number(payment.amount), 0);
 }
@@ -335,6 +356,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
   const isManagement = managementRoles.has(profile.role);
   const params = await searchParams;
   const memberQuery = (params?.q ?? "").trim();
+  const memberQrToken = params?.qr ? parseMemberQrPayload(params.qr) : null;
 
   const [
     entriesTodayResult,
@@ -496,7 +518,92 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
     activeShiftCashMovements,
   );
 
-  if (memberQuery) {
+  if (params?.qr && !memberQrToken) {
+    memberSearchError = "This QR code is not a valid GymLedger member card.";
+  } else if (memberQrToken) {
+    const { data: members, error: membersError } = await supabase
+      .from("members")
+      .select("id, full_name, phone, member_code, status")
+      .eq("qr_token", memberQrToken)
+      .limit(1);
+
+    if (membersError) {
+      memberSearchError = membersError.message;
+    } else {
+      const memberRows = (members ?? []) as MemberSearchRow[];
+      const memberIds = memberRows.map((member) => member.id);
+
+      if (memberIds.length) {
+        const [subscriptionsResult, paymentsResult, balancesResult, entriesResult] = await Promise.all([
+          supabase
+            .from("member_subscriptions")
+            .select("id, member_id, starts_at, ends_at, status, entries_used, membership_plans(name)")
+            .in("member_id", memberIds)
+            .order("ends_at", { ascending: false }),
+          supabase
+            .from("payments")
+            .select("member_id, amount")
+            .in("member_id", memberIds)
+            .eq("status", "pending"),
+          supabase
+            .from("walk_in_balances")
+            .select("member_id, amount")
+            .in("member_id", memberIds)
+            .eq("status", "pending"),
+          supabase
+            .from("entries")
+            .select("member_id, entered_at")
+            .in("member_id", memberIds)
+            .neq("status", "voided")
+            .order("entered_at", { ascending: false }),
+        ]);
+
+        const relatedError =
+          subscriptionsResult.error ?? paymentsResult.error ?? balancesResult.error ?? entriesResult.error;
+
+        if (relatedError) {
+          memberSearchError = relatedError.message;
+        } else {
+          const subscriptions = (subscriptionsResult.data ?? []) as MemberSubscriptionRow[];
+          const payments = (paymentsResult.data ?? []) as MemberPaymentRow[];
+          const balances = (balancesResult.data ?? []) as MemberBalanceRow[];
+          const entries = (entriesResult.data ?? []) as MemberEntryRow[];
+          const latestSubscriptionByMember = latestByMember(subscriptions, (row) =>
+            new Date(`${row.ends_at}T00:00:00+08:00`).getTime(),
+          );
+          const latestEntryByMember = latestByMember(entries, (row) =>
+            new Date(row.entered_at).getTime(),
+          );
+          const balanceByMember = payments.reduce<Record<string, number>>((lookup, payment) => {
+            lookup[payment.member_id] = (lookup[payment.member_id] ?? 0) + Number(payment.amount ?? 0);
+            return lookup;
+          }, {});
+
+          balances.forEach((balance) => {
+            if (balance.member_id) {
+              balanceByMember[balance.member_id] =
+                (balanceByMember[balance.member_id] ?? 0) + Number(balance.amount ?? 0);
+            }
+          });
+
+          memberResults = memberRows.map((member) => {
+            const latestSubscription = latestSubscriptionByMember[member.id] ?? null;
+            const isBanned = member.status === "banned";
+            const isActive = !isBanned && member.status === "active" && isCurrentSubscription(latestSubscription);
+
+            return {
+              ...member,
+              accessStatus: isBanned ? "banned" : isActive ? "active" : "expired",
+              balance: balanceByMember[member.id] ?? 0,
+              currentPlan: getPlanName(latestSubscription),
+              expiryDate: latestSubscription?.ends_at ?? null,
+              lastCheckIn: latestEntryByMember[member.id]?.entered_at ?? null,
+            };
+          });
+        }
+      }
+    }
+  } else if (memberQuery) {
     const safeMemberQuery = memberQuery.replace(/[^a-zA-Z0-9\s@.+-]/g, " ").trim();
 
     if (safeMemberQuery) {
@@ -655,25 +762,25 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
 
   const actions = [
     {
-      description: "Register a same-day guest entry",
+      description: "Same-day guest entry",
       href: "#walk-in",
       icon: Plus,
       label: "+ Walk-In",
     },
     {
-      description: "Find a member and record entry",
+      description: "Search or scan member card",
       href: "#member-check-in",
       icon: UserRoundCheck,
       label: "Member Check-In",
     },
     {
-      description: "Log cash, GCash, or utang",
+      description: "Cash, GCash, or utang",
       href: "/payments",
       icon: ReceiptText,
       label: "Record Payment",
     },
     {
-      description: "Flag owner approval or unusual cases",
+      description: "Owner approval or unusual case",
       href: "/exceptions",
       icon: ClipboardPlus,
       label: "Add Exception",
@@ -687,8 +794,8 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
           <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
             Front Desk Portal
           </p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
-            Current Shift Dashboard
+          <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-5xl">
+            Front Desk
           </h2>
           <p className="mt-2 text-sm font-bold text-ledger-moss">
             {today.label} · {roleLabels[profile.role]} view
@@ -704,11 +811,11 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
           if (!hasActiveShift) {
             return (
               <div
-                className="flex min-h-28 flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-ledger-moss"
+                className="flex min-h-32 flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-ledger-moss"
                 key={action.label}
               >
                 <span className="flex items-center justify-between gap-3">
-                  <span className="text-base font-black">{action.label}</span>
+                  <span className="text-lg font-black">{action.label}</span>
                   <Icon aria-hidden="true" className="size-5 shrink-0" />
                 </span>
                 <span className="text-sm font-bold leading-5">
@@ -720,12 +827,12 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
 
           return (
             <a
-              className="group flex min-h-28 flex-col justify-between rounded-2xl border border-ledger-line bg-ledger-ink p-4 text-ledger-paper shadow-ledger transition hover:-translate-y-0.5 hover:bg-ledger-moss"
+              className="group flex min-h-32 flex-col justify-between rounded-2xl border border-ledger-line bg-ledger-ink p-4 text-ledger-paper shadow-ledger transition hover:-translate-y-0.5 hover:bg-ledger-moss active:scale-[0.99]"
               href={action.href}
               key={action.label}
             >
               <span className="flex items-center justify-between gap-3">
-                <span className="text-base font-black">{action.label}</span>
+                <span className="text-lg font-black">{action.label}</span>
                 <Icon aria-hidden="true" className="size-5 shrink-0 text-ledger-lime" />
               </span>
               <span className="text-sm font-bold leading-5 text-ledger-paper/70">
@@ -736,11 +843,11 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
         })}
         {hasActiveShift ? (
           <a
-            className="group flex min-h-28 flex-col justify-between rounded-2xl border border-ledger-line bg-ledger-ink p-4 text-ledger-paper shadow-ledger transition hover:-translate-y-0.5 hover:bg-ledger-moss"
+            className="group flex min-h-32 flex-col justify-between rounded-2xl border border-ledger-line bg-ledger-ink p-4 text-ledger-paper shadow-ledger transition hover:-translate-y-0.5 hover:bg-ledger-moss active:scale-[0.99]"
             href="#end-shift"
           >
             <span className="flex items-center justify-between gap-3">
-              <span className="text-base font-black">End Shift</span>
+              <span className="text-lg font-black">End Shift</span>
               <LogOut aria-hidden="true" className="size-5 shrink-0 text-ledger-lime" />
             </span>
             <span className="text-sm font-bold leading-5 text-ledger-paper/70">
@@ -749,12 +856,12 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
           </a>
         ) : (
           <button
-            className="flex min-h-28 cursor-not-allowed flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-left text-ledger-moss"
+            className="flex min-h-32 cursor-not-allowed flex-col justify-between rounded-2xl border border-dashed border-ledger-line bg-ledger-paper/70 p-4 text-left text-ledger-moss"
             disabled
             type="button"
           >
             <span className="flex items-center justify-between gap-3">
-              <span className="text-base font-black">End Shift</span>
+              <span className="text-lg font-black">End Shift</span>
               <LogOut aria-hidden="true" className="size-5 shrink-0" />
             </span>
             <span className="text-sm font-bold leading-5">Start a shift before closing cash.</span>
@@ -832,12 +939,16 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
                 Member Check-In
               </p>
               <h3 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
-                Search member records
+                Scan or search member records
               </h3>
             </div>
             <p className="text-sm font-bold text-ledger-moss">
-              Search by name, phone number, or member ID
+              Scan QR, or enter name, phone number, or member ID
             </p>
+          </div>
+
+          <div className="mb-5">
+            <QrScanner />
           </div>
 
           <form action="/front-desk#member-check-in" className="relative">
@@ -846,7 +957,7 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
               className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ledger-moss"
             />
             <Input
-              className="pl-12"
+              className="min-h-14 pl-12 text-lg font-bold"
               defaultValue={memberQuery}
               name="q"
               placeholder="Name, phone, or member ID"
@@ -854,25 +965,35 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
             />
           </form>
 
+          {memberQrToken && memberResults.length ? (
+            <StateMessage className="mt-5" tone="success" title="QR card matched">
+              QR card matched. Continue with the allowed check-in action below.
+            </StateMessage>
+          ) : null}
+
           {memberSearchError ? (
-            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <StateMessage className="mt-5" tone="danger" title="Member lookup failed">
               {memberSearchError}
-            </div>
+            </StateMessage>
           ) : null}
 
           <div className="mt-5 space-y-4">
-            {memberQuery && !memberSearchError && !memberResults.length ? (
-              <div className="rounded-2xl border border-dashed border-ledger-line bg-white/60 px-4 py-8 text-center">
-                <p className="font-black text-ledger-ink">No matching member</p>
-                <p className="mt-1 text-sm font-bold text-ledger-moss">
-                  Try a different name, phone number, or member ID.
-                </p>
-              </div>
+            {(memberQuery || memberQrToken) && !memberSearchError && !memberResults.length ? (
+              <EmptyState
+                body="Try a different name, phone number, member ID, or scan the card again. Use walk-in only if this person should not be treated as a member entry."
+                compact
+                title="No matching member"
+              />
             ) : null}
 
             {memberResults.map((member) => (
               <div
-                className="rounded-2xl border border-ledger-line bg-white/70 p-4"
+                className={cn(
+                  "rounded-2xl border-2 bg-white/80 p-4",
+                  member.accessStatus === "active" && "border-green-300",
+                  member.accessStatus === "expired" && "border-amber-300 bg-amber-50/60",
+                  member.accessStatus === "banned" && "border-red-400 bg-red-50/80",
+                )}
                 key={member.id}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -881,16 +1002,9 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
                       <h4 className="break-words font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
                         {member.full_name}
                       </h4>
-                      <span
-                        className={cn(
-                          "inline-flex h-8 items-center rounded-full px-3 text-xs font-black uppercase",
-                          member.accessStatus === "active" && "bg-green-100 text-green-800",
-                          member.accessStatus === "expired" && "bg-amber-100 text-amber-800",
-                          member.accessStatus === "banned" && "bg-red-100 text-red-800",
-                        )}
-                      >
-                        {member.accessStatus}
-                      </span>
+                      <StatusBadge tone={getAccessTone(member.accessStatus)}>
+                        {getAccessLabel(member.accessStatus)}
+                      </StatusBadge>
                     </div>
                     <p className="mt-1 text-sm font-bold text-ledger-moss">
                       {member.member_code} · {member.phone || "No phone"}
@@ -902,6 +1016,18 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
                   ) : null}
                 </div>
 
+                {member.accessStatus === "expired" ? (
+                  <StateMessage className="mt-5" tone="warn" title="Membership expired">
+                    Do not use normal check-in. Collect a walk-in payment, record utang with a reason, or send an owner override for review.
+                  </StateMessage>
+                ) : null}
+
+                {member.accessStatus === "banned" ? (
+                  <StateMessage className="mt-5" tone="danger" title="Banned member">
+                    Check-in is blocked. Do not admit this member or override at the front desk.
+                  </StateMessage>
+                ) : null}
+
                 <dl className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <MemberFact label="Current plan" value={member.currentPlan} />
                   <MemberFact label="Expiry date" value={formatDate(member.expiryDate)} />
@@ -912,11 +1038,6 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
 
                 {member.accessStatus === "expired" ? <ExpiredMemberActions memberId={member.id} /> : null}
 
-                {member.accessStatus === "banned" ? (
-                  <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-800">
-                    This member is banned. Check-in is blocked and must not be overridden at the front desk.
-                  </div>
-                ) : null}
               </div>
             ))}
           </div>
@@ -1053,13 +1174,11 @@ export default async function FrontDeskPage({ searchParams }: FrontDeskPageProps
               })}
             </div>
           ) : (
-            <div className="px-5 py-14 text-center">
-              <UserRoundCheck aria-hidden="true" className="mx-auto size-10 text-ledger-moss" />
-              <p className="mt-4 font-black text-ledger-ink">No activity yet today</p>
-              <p className="mt-1 text-sm font-bold text-ledger-moss">
-                New check-ins, payments, and exceptions will appear here.
-              </p>
-            </div>
+            <EmptyState
+              className="m-5"
+              body="New check-ins, payments, and exceptions will appear here as soon as staff records them."
+              title="No activity yet today"
+            />
           )}
         </Card>
 

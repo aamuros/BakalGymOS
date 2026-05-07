@@ -11,6 +11,7 @@ import { startShiftSchema, type StartShiftValues } from "@/app/(app)/shifts/sche
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StateMessage } from "@/components/ui/state-message";
 
 export function StartShiftForm() {
   const router = useRouter();
@@ -47,15 +48,16 @@ export function StartShiftForm() {
   return (
     <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <StateMessage tone="danger" title="Shift was not started">
           {serverError}
-        </div>
+        </StateMessage>
       ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="starting_cash">Starting cash amount</Label>
         <Input
           id="starting_cash"
+          className="min-h-14 text-lg font-black"
           inputMode="decimal"
           min="0"
           step="0.01"
@@ -78,7 +80,7 @@ export function StartShiftForm() {
         {errors.note ? <p className="text-sm font-bold text-red-700">{errors.note.message}</p> : null}
       </div>
 
-      <Button className="gap-2" disabled={isPending} type="submit">
+      <Button className="min-h-14 w-full gap-2 rounded-2xl text-base" disabled={isPending} type="submit">
         <Play aria-hidden="true" className="size-4" />
         {isPending ? "Starting..." : "Start shift"}
       </Button>

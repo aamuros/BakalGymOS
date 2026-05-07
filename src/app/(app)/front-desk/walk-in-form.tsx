@@ -11,6 +11,7 @@ import { walkInSchema, type WalkInValues } from "@/app/(app)/front-desk/walk-in-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StateMessage } from "@/components/ui/state-message";
 import { cn } from "@/lib/utils";
 
 const methodOptions = [
@@ -78,18 +79,19 @@ export function WalkInForm() {
   return (
     <form className="grid gap-5" onSubmit={handleSubmit(onSubmit)}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <StateMessage tone="danger" title="Walk-in was not recorded">
           {serverError}
-        </div>
+        </StateMessage>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-[1fr_12rem]">
+      <div className="grid gap-4 md:grid-cols-[1fr_14rem]">
         <div className="space-y-2">
           <Label htmlFor="walk_in_customer_name">Customer name</Label>
           <Input
+            className="min-h-14 text-lg font-bold"
             id="walk_in_customer_name"
             autoComplete="name"
-            placeholder="Optional"
+            placeholder="Optional, for receipts or utang"
             {...register("customer_name")}
           />
           {errors.customer_name ? (
@@ -100,6 +102,7 @@ export function WalkInForm() {
         <div className="space-y-2">
           <Label htmlFor="walk_in_amount">Amount</Label>
           <Input
+            className="min-h-14 text-lg font-black"
             id="walk_in_amount"
             inputMode="decimal"
             min="0"
@@ -123,7 +126,7 @@ export function WalkInForm() {
             return (
               <label
                 className={cn(
-                  "flex min-h-24 cursor-pointer flex-col justify-between rounded-2xl border p-4 transition",
+                  "flex min-h-28 cursor-pointer flex-col justify-between rounded-2xl border p-4 transition active:scale-[0.99]",
                   checked
                     ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
                     : "border-ledger-line bg-white/70 text-ledger-ink hover:border-ledger-moss",
@@ -132,7 +135,7 @@ export function WalkInForm() {
               >
                 <input className="sr-only" type="radio" value={method.value} {...register("payment_method")} />
                 <span className="flex items-center justify-between gap-3">
-                  <span className="font-black">{method.label}</span>
+                    <span className="text-lg font-black">{method.label}</span>
                   <Icon
                     aria-hidden="true"
                     className={cn("size-5", checked ? "text-ledger-lime" : "text-ledger-moss")}
@@ -162,7 +165,7 @@ export function WalkInForm() {
       </div>
 
       <div className="flex justify-end">
-        <Button className="gap-2" disabled={isPending} type="submit">
+        <Button className="min-h-14 w-full gap-2 rounded-2xl text-base sm:w-auto" disabled={isPending} type="submit">
           <Save aria-hidden="true" className="size-4" />
           {isPending ? "Recording..." : "Record walk-in"}
         </Button>

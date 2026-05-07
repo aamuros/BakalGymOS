@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import { checkInActiveMember } from "@/app/(app)/front-desk/actions";
 import { Button } from "@/components/ui/button";
+import { StateMessage } from "@/components/ui/state-message";
 
 type MemberCheckInButtonProps = {
   memberId: string;
@@ -33,11 +34,11 @@ export function MemberCheckInButton({ memberId }: MemberCheckInButtonProps) {
   return (
     <div className="space-y-3">
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <StateMessage tone="danger" title="Check-in failed">
           {serverError}
-        </div>
+        </StateMessage>
       ) : null}
-      <Button className="w-full gap-2 sm:w-auto" disabled={isPending} onClick={onCheckIn}>
+      <Button className="min-h-14 w-full gap-2 rounded-2xl text-base sm:w-auto" disabled={isPending} onClick={onCheckIn}>
         <LogIn aria-hidden="true" className="size-4" />
         {isPending ? "Checking in..." : "Check In"}
       </Button>
