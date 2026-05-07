@@ -70,10 +70,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    if (
-      (requestedModule === "/front-desk" || requestedModule === "/notifications") &&
-      request.cookies.has("gymledger_staff_pin_session")
-    ) {
+    if (requestedModule === "/front-desk" && request.cookies.has("gymledger_staff_pin_session")) {
       return response;
     }
 

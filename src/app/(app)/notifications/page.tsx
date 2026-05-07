@@ -16,7 +16,7 @@ import {
   MarkNotificationReadButton,
 } from "@/app/(app)/notifications/notification-actions";
 import { Card } from "@/components/ui/card";
-import { requireCurrentProfile } from "@/lib/auth/server";
+import { requireModuleAccess } from "@/lib/auth/server";
 import { getNotifications, refreshOperationalNotifications } from "@/lib/notifications";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-PH", {
@@ -70,7 +70,7 @@ function labelize(value: string) {
 }
 
 export default async function NotificationsPage() {
-  const profile = await requireCurrentProfile();
+  const profile = await requireModuleAccess("/notifications");
   await refreshOperationalNotifications(profile);
 
   const notifications = await getNotifications(profile);

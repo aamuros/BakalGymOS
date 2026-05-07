@@ -17,15 +17,24 @@
 
 ## Findings
 
-No findings recorded yet.
+### Medium Staff PIN Session Can Reach Notifications Module
+- Area: Access control
+- Files: `src/proxy.ts`, `src/app/(app)/notifications/page.tsx`, `src/app/(app)/notifications/actions.ts`
+- Risk: A front-desk staff PIN session can view and mark notifications through the protected notifications module, bypassing the server-side staff PIN restriction that should limit PIN access to `/front-desk`.
+- Evidence: `rg` showed the notifications page and actions using `requireCurrentProfile()` instead of `requireModuleAccess("/notifications")`, while proxy allowed unauthenticated staff PIN cookies through for `/notifications`.
+- Recommendation: Require `/notifications` module access in the notifications page and server actions, and remove the `/notifications` staff PIN proxy bypass so staff PIN sessions remain front-desk only.
+- Status: Fixed
 
 ## Fixes Applied
 
-No fixes applied yet.
+- Removed the `/notifications` staff PIN proxy exception.
+- Updated the notifications page and mark-read server actions to call `requireModuleAccess("/notifications")`.
+- Added a critical workflow source assertion that staff PIN sessions stay limited to front desk routes and actions.
 
 ## Verification After Fixes
 
-Not run yet.
+- `npm test`: Pass, 12 tests across 2 suites.
+- `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
 
 ## Remaining Pilot Risks
 

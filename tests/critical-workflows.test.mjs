@@ -23,6 +23,8 @@ const frontDeskActions = read("src/app/(app)/front-desk/actions.ts");
 const shiftActions = read("src/app/(app)/shifts/actions.ts");
 const exceptionActions = read("src/app/(app)/exceptions/actions.ts");
 const gcashReviewActions = read("src/app/(app)/payments/gcash-review/actions.ts");
+const notificationActions = read("src/app/(app)/notifications/actions.ts");
+const notificationsPage = read("src/app/(app)/notifications/page.tsx");
 const permissions = read("src/lib/auth/permissions.ts");
 const proxy = read("src/proxy.ts");
 const supabaseServer = read("src/lib/supabase/server.ts");
@@ -98,6 +100,12 @@ describe("security checklist", () => {
     assert.match(proxy, /"\/audit-logs": true/);
     assert.match(proxy, /"\/settings": true/);
     assert.match(proxy, /"\/notifications\/:path\*"/);
+  });
+
+  it("keeps staff PIN sessions limited to front desk routes and actions", () => {
+    assert.doesNotMatch(proxy, /requestedModule === "\/notifications"[\s\S]*gymledger_staff_pin_session/);
+    assert.match(notificationsPage, /requireModuleAccess\("\/notifications"\)/);
+    assert.match(notificationActions, /requireModuleAccess\("\/notifications"\)/);
   });
 
   it("enables RLS for public application tables", () => {
