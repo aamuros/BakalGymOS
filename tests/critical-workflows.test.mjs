@@ -46,6 +46,25 @@ describe("critical workflow safeguards", () => {
     assert.match(migrations, /entry_limit_reached/);
   });
 
+  it("locks subscription usage before active member check-in increments", () => {
+    assert.match(migrations, /create or replace function public\.create_member_check_in/);
+    assert.match(migrations, /for update of ms/);
+    assert.match(migrations, /create or replace function public\.create_staff_pin_member_check_in/);
+    assert.match(frontDeskActions, /create_staff_pin_member_check_in/);
+  });
+
+  it("keeps staff PIN service-role writes inside guarded RPC workflows", () => {
+    assert.match(frontDeskActions, /create_staff_pin_walk_in/);
+    assert.match(frontDeskActions, /handle_staff_pin_expired_member_entry/);
+    assert.match(frontDeskActions, /mark_staff_pin_gcash_proof_uploaded/);
+    assert.match(shiftActions, /close_staff_pin_shift_reconciliation/);
+    assert.match(migrations, /create or replace function public\.create_staff_pin_walk_in/);
+    assert.match(migrations, /create or replace function public\.handle_staff_pin_expired_member_entry/);
+    assert.match(migrations, /create or replace function public\.mark_staff_pin_gcash_proof_uploaded/);
+    assert.match(migrations, /create or replace function public\.close_staff_pin_shift_reconciliation/);
+    assert.match(migrations, /target_proof\.proof_status not in \('pending_proof', 'needs_follow_up', 'disputed'\)/);
+  });
+
   it("requires controlled expired-member handling paths", () => {
     assert.match(frontDeskActions, /expiredMemberRpcSchema\.safeParse/);
     assert.match(migrations, /create or replace function public\.handle_expired_member_entry/);
@@ -64,8 +83,8 @@ describe("critical workflow safeguards", () => {
 
   it("moves GCash proof uploads into the owner review queue and confirmation RPC", () => {
     assert.match(frontDeskActions, /proofUploadSchema\.safeParse/);
-    assert.match(frontDeskActions, /proof_status:\s*"staff_checked"/);
-    assert.match(frontDeskActions, /status:\s*"staff_checked"/);
+    assert.match(frontDeskActions, /mark_gcash_proof_uploaded/);
+    assert.match(frontDeskActions, /mark_staff_pin_gcash_proof_uploaded/);
     assert.match(gcashReviewActions, /gcashReviewSchema\.safeParse/);
     assert.match(migrations, /create or replace function public\.review_gcash_proof/);
     assert.match(migrations, /when 'confirm' then 'owner_confirmed'/);
@@ -73,7 +92,6 @@ describe("critical workflow safeguards", () => {
 
   it("requires shift reconciliation variance notes before closing", () => {
     assert.match(shiftActions, /closeShiftSchema\.safeParse/);
-    assert.match(shiftActions, /Variance explanation is required when variance is not zero\./);
     assert.match(migrations, /create or replace function public\.close_shift_reconciliation/);
     assert.match(migrations, /variance_value <> 0 and clean_variance_note is null/);
   });
