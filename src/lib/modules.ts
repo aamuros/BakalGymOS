@@ -3,6 +3,7 @@ import {
   BadgeDollarSign,
   BarChart3,
   CalendarClock,
+  ClipboardList,
   LayoutDashboard,
   Settings,
   Users,
@@ -33,6 +34,12 @@ export const modules = [
     href: "/payments",
     description: "Cash, GCash, pending balances, and payment reviews.",
     icon: BadgeDollarSign,
+  },
+  {
+    title: "Entry Reconciliation",
+    href: "/entry-reconciliation",
+    description: "Inspect every entry and the reason access was allowed.",
+    icon: ClipboardList,
   },
   {
     title: "Shifts",
