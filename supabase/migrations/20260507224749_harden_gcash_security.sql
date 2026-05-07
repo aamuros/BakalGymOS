@@ -205,7 +205,7 @@ begin
     raise exception 'Choose a valid GCash review action.';
   end if;
 
-  select gp.id, gp.payment_id, gp.proof_status
+  select gp.id, gp.payment_id, gp.proof_status, gp.storage_path, gp.file_name, gp.mime_type, gp.file_size
   into target_proof
   from public.gcash_proofs gp
   where gp.id = p_proof_id
@@ -213,6 +213,37 @@ begin
 
   if target_proof.id is null then
     raise exception 'GCash proof was not found.';
+  end if;
+
+  if target_proof.storage_path is null
+    or btrim(target_proof.storage_path) = ''
+    or position('pending-proofs/' in target_proof.storage_path) = 1
+  then
+    raise exception 'GCash proof image must be uploaded before review.';
+  end if;
+
+  if target_proof.file_name is null
+    or btrim(target_proof.file_name) = ''
+    or target_proof.file_name = 'Pending proof'
+    or target_proof.mime_type not in ('image/jpeg', 'image/png', 'image/webp')
+    or target_proof.file_size is null
+    or target_proof.file_size <= 0
+  then
+    raise exception 'GCash proof upload metadata is incomplete.';
+  end if;
+
+  if p_action = 'confirm'
+    and target_proof.proof_status not in ('staff_checked', 'needs_follow_up')
+  then
+    raise exception 'Only checked or follow-up GCash proofs can be confirmed.';
+  elsif p_action = 'dispute'
+    and target_proof.proof_status not in ('staff_checked', 'needs_follow_up')
+  then
+    raise exception 'Only checked or follow-up GCash proofs can be disputed.';
+  elsif p_action = 'follow_up'
+    and target_proof.proof_status not in ('staff_checked', 'disputed')
+  then
+    raise exception 'Only checked or disputed GCash proofs can request follow-up.';
   end if;
 
   new_status := case p_action

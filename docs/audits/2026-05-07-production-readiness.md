@@ -65,6 +65,14 @@
 - Recommendation: Replace the storage update/delete policies after `private.has_permission` exists and require `private.has_permission('correct_payments')` for file mutation.
 - Status: Fixed
 
+### High GCash Proof Review RPC Accepted Unuploaded Proof States
+- Area: Supabase security
+- Files: `supabase/migrations/20260507224749_harden_gcash_security.sql`
+- Risk: A direct authenticated caller with `correct_payments` could confirm, dispute, or request follow-up for a `pending_proof` before a real proof image was uploaded.
+- Evidence: `review_gcash_proof` locked the proof row and checked only that it existed before updating `gcash_proofs` and `payments`; UI filtering limited rows to reviewable states, but the security-definer RPC did not enforce that boundary.
+- Recommendation: Load proof upload metadata in the RPC, reject placeholder storage paths and incomplete upload metadata, and enforce action-specific current statuses before any write.
+- Status: Fixed
+
 ## Fixes Applied
 
 - Removed the `/notifications` staff PIN proxy exception.
@@ -79,10 +87,11 @@
 - Added the missing staff PIN GCash proof upload permission check inside the service-role RPC.
 - Updated the protected GCash proof image route to use `requireModuleAccess("/front-desk")` before proof metadata lookup or private storage download.
 - Added critical workflow assertions for privileged GCash proof RPC permission checks, storage mutation permission checks, and proof image module access.
+- Added database-enforced GCash proof review state checks so confirmation/dispute/follow-up actions require uploaded proof metadata and allowed current statuses.
 
 ## Verification After Fixes
 
-- `npm test`: Pass, 18 tests across 2 suites.
+- `npm test`: Pass, 19 tests across 2 suites.
 - `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
 - `npm run build`: Pass; Next.js still warns about multiple lockfiles and workspace root inference.
 - `supabase db lint`: Pass; no schema errors found.

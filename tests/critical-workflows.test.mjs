@@ -193,6 +193,27 @@ describe("security checklist", () => {
     );
   });
 
+  it("keeps GCash proof review constrained to uploaded reviewable states", () => {
+    assert.match(
+      migrations,
+      /create or replace function public\.review_gcash_proof[\s\S]*gp\.storage_path[\s\S]*gp\.file_name[\s\S]*gp\.mime_type[\s\S]*gp\.file_size/
+    );
+    assert.match(migrations, /target_proof\.storage_path is null[\s\S]*pending-proofs\//);
+    assert.match(migrations, /target_proof\.file_name is null[\s\S]*Pending proof/);
+    assert.match(
+      migrations,
+      /p_action = 'confirm'[\s\S]*target_proof\.proof_status not in \('staff_checked', 'needs_follow_up'\)/
+    );
+    assert.match(
+      migrations,
+      /p_action = 'dispute'[\s\S]*target_proof\.proof_status not in \('staff_checked', 'needs_follow_up'\)/
+    );
+    assert.match(
+      migrations,
+      /p_action = 'follow_up'[\s\S]*target_proof\.proof_status not in \('staff_checked', 'disputed'\)/
+    );
+  });
+
   it("keeps GCash proof image streaming behind module access", () => {
     assert.match(gcashProofImageRoute, /requireModuleAccess\("\/front-desk"\)/);
     assert.doesNotMatch(gcashProofImageRoute, /const allowedRoles = new Set/);
