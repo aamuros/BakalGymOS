@@ -13,7 +13,7 @@
 
 ## Dependency Risk
 
-`npm audit --omit=dev` reported 2 moderate production vulnerabilities in `postcss` via `next`. The automated force fix is not suitable for this audit task because npm proposes a breaking downgrade to `next@9.3.3`.
+`npm audit --omit=dev` reported 2 moderate production vulnerabilities in `postcss` via `next`. Safe patch updates were applied for Next.js, React, React DOM, `eslint-config-next`, and `@supabase/ssr`, but the advisory remains. The automated force fix is not suitable because npm proposes a breaking downgrade to `next@9.3.3`.
 
 ## Findings
 
@@ -73,6 +73,30 @@
 - Recommendation: Load proof upload metadata in the RPC, reject placeholder storage paths and incomplete upload metadata, and enforce action-specific current statuses before any write.
 - Status: Fixed
 
+### Medium Staff PIN Session Secret Fell Back To Service Role Key
+- Area: Production configuration
+- Files: `src/lib/auth/staff-pin.ts`, `README.md`
+- Risk: Production staff PIN cookies could be signed with the Supabase service-role key, increasing blast radius if the cookie signing secret is exposed or rotated.
+- Evidence: `getSessionSecret()` used `process.env.STAFF_PIN_SESSION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY`.
+- Recommendation: Require a dedicated `STAFF_PIN_SESSION_SECRET` in production and document it in the pilot deployment checklist.
+- Status: Fixed
+
+### Medium Local Seed Credentials Need Explicit Pilot Warning
+- Area: Production configuration
+- Files: `README.md`, `supabase/seed.sql`
+- Risk: Demo accounts using the shared local password `Test1234!` could be loaded into a pilot database if deployment instructions do not clearly separate seed data from pilot data.
+- Evidence: `supabase/seed.sql` creates local Auth users with a shared password and the README listed demo accounts without an explicit pilot prohibition.
+- Recommendation: Document that local seed accounts and shared passwords are for development/demo use only and must not be loaded into the pilot database.
+- Status: Fixed
+
+### Medium Production Dependency Audit Reports Next/PostCSS Advisory
+- Area: Production configuration
+- Files: `package.json`, `package-lock.json`
+- Risk: `npm audit --omit=dev` reports a moderate PostCSS advisory through Next.js, so production dependency risk is not fully clear for pilot deployment.
+- Evidence: `npm audit --omit=dev` reports `postcss <8.5.10` advisory `GHSA-qx2v-qp2m-jg93` via `next`; npm's force fix proposes `next@9.3.3`, which is a breaking downgrade and not suitable.
+- Recommendation: Keep the audit risk documented, monitor for a safe Next.js release that resolves the advisory, and do not use npm's forced downgrade.
+- Status: Accepted risk
+
 ## Fixes Applied
 
 - Removed the `/notifications` staff PIN proxy exception.
@@ -88,15 +112,22 @@
 - Updated the protected GCash proof image route to use `requireModuleAccess("/front-desk")` before proof metadata lookup or private storage download.
 - Added critical workflow assertions for privileged GCash proof RPC permission checks, storage mutation permission checks, and proof image module access.
 - Added database-enforced GCash proof review state checks so confirmation/dispute/follow-up actions require uploaded proof metadata and allowed current statuses.
+- Required `STAFF_PIN_SESSION_SECRET` in production instead of falling back to the Supabase service-role key.
+- Added a pilot deployment checklist and explicit warning not to load local seed demo accounts into pilot or production databases.
+- Applied safe patch upgrades for Next.js, React, React DOM, `eslint-config-next`, and `@supabase/ssr`.
+- Recorded the unresolved Next/PostCSS production dependency advisory as an accepted pilot risk because npm's automated force fix proposes a breaking downgrade.
 
 ## Verification After Fixes
 
-- `npm test`: Pass, 19 tests across 2 suites.
+- `npm test`: Pass, 20 tests across 2 suites.
 - `npm run lint`: Pass with the existing `<img>` warning in `src/app/(app)/payments/gcash-review/page.tsx`.
-- `npm run build`: Pass; Next.js still warns about multiple lockfiles and workspace root inference.
-- `supabase db lint`: Pass; no schema errors found.
+- `npm run build`: Pass on Next.js 16.2.6; Next.js still warns about multiple lockfiles and workspace root inference.
+- `npm audit --omit=dev`: Fail; the moderate Next/PostCSS advisory remains after safe patch upgrades, and npm's force fix still proposes a breaking downgrade.
+- `supabase db lint`: Blocked in the latest run because the local Postgres service on `127.0.0.1:55322` was not running. The previous Task 4 run passed `supabase db lint` before the local database stopped.
 - `supabase db reset`: All migrations applied, including `20260507224749_harden_gcash_security.sql`; blocked during `supabase/seed.sql`. The existing profile privilege-escalation trigger rejects seed profile role/status upserts because the seed runs without an authenticated owner/admin actor.
 
 ## Remaining Pilot Risks
 
 - `supabase db reset` needs a seed-safe path for demo profile role/status upserts before it can complete end to end.
+- `supabase db lint` must be rerun before pilot deployment when the local or target Supabase database is reachable.
+- `npm audit --omit=dev` still reports the moderate Next/PostCSS advisory; monitor for a safe Next.js release that resolves it.

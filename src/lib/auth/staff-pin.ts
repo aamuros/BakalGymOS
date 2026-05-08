@@ -23,15 +23,23 @@ export type StaffPinSession = {
 };
 
 function getSessionSecret() {
-  const secret =
-    process.env.STAFF_PIN_SESSION_SECRET ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = process.env.STAFF_PIN_SESSION_SECRET;
 
-  if (!secret) {
+  if (secret) {
+    return secret;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Missing STAFF_PIN_SESSION_SECRET.");
+  }
+
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!fallback) {
     throw new Error("Missing STAFF_PIN_SESSION_SECRET or SUPABASE_SERVICE_ROLE_KEY.");
   }
 
-  return secret;
+  return fallback;
 }
 
 function encodeBase64Url(value: string | Buffer) {

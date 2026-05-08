@@ -262,6 +262,17 @@ Open the app at:
 http://localhost:3000
 ```
 
+## Pilot Deployment Checklist
+
+- Set `NEXT_PUBLIC_SUPABASE_URL` to the pilot Supabase project URL.
+- Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the pilot Supabase anon key.
+- Set `SUPABASE_SERVICE_ROLE_KEY` only in the server runtime environment.
+- Set `STAFF_PIN_SESSION_SECRET` to a long random value that is different from the Supabase service-role key.
+- Do not load local seed users, demo passwords, or demo staff PINs into the pilot database.
+- Confirm the `gcash-proofs` bucket is private before accepting real proof images.
+- Confirm database backups are enabled before recording real member, payment, shift, and proof data.
+- Run `npm test`, `npm run lint`, `npm run build`, `npm audit --omit=dev`, and Supabase checks before deploying.
+
 ## Verification
 
 Run linting:
@@ -306,6 +317,8 @@ The seed file also creates these member auth users:
 | `expired.member@gymledger.local` | Member |
 
 These member accounts exist in Auth and `profiles`, but they do not currently access the protected staff app shell.
+
+These accounts are for local development and demos only. Do not seed them into a pilot or production Supabase project.
 
 ## Project Structure
 

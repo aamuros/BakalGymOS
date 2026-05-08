@@ -29,6 +29,7 @@ const notificationActions = read("src/app/(app)/notifications/actions.ts");
 const notificationsPage = read("src/app/(app)/notifications/page.tsx");
 const permissions = read("src/lib/auth/permissions.ts");
 const proxy = read("src/proxy.ts");
+const staffPinAuth = read("src/lib/auth/staff-pin.ts");
 const supabaseServer = read("src/lib/supabase/server.ts");
 
 describe("critical workflow safeguards", () => {
@@ -111,6 +112,13 @@ describe("security checklist", () => {
   it("does not expose the Supabase service role key through public env names", () => {
     assert.match(supabaseServer, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
     assert.doesNotMatch(supabaseServer, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
+  });
+
+  it("requires a dedicated staff PIN session secret in production", () => {
+    assert.match(staffPinAuth, /process\.env\.STAFF_PIN_SESSION_SECRET/);
+    assert.match(staffPinAuth, /process\.env\.NODE_ENV === "production"/);
+    assert.match(staffPinAuth, /throw new Error\("Missing STAFF_PIN_SESSION_SECRET\."\)/);
+    assert.match(staffPinAuth, /const fallback = process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
   });
 
   it("protects owner-only modules from staff roles", () => {
