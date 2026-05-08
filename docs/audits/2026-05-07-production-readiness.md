@@ -131,3 +131,7 @@
 - `supabase db reset` needs a seed-safe path for demo profile role/status upserts before it can complete end to end.
 - `supabase db lint` must be rerun before pilot deployment when the local or target Supabase database is reachable.
 - `npm audit --omit=dev` still reports the moderate Next/PostCSS advisory; monitor for a safe Next.js release that resolves it.
+
+## Final Status
+
+The application is materially closer to small-gym pilot readiness after this audit. Critical and high application/database findings found during this pass were fixed. Remaining blockers are operational/dependency follow-ups: seed reset compatibility, rerunning Supabase lint against a reachable database, and monitoring the unresolved Next/PostCSS advisory.
