@@ -7,29 +7,14 @@ import {
   isAppRole,
   type AppRole,
 } from "@/lib/auth/permissions";
-import type { ModuleHref } from "@/lib/modules";
-
-const protectedRoutes: Record<ModuleHref, true> = {
-  "/front-desk": true,
-  "/owner-dashboard": true,
-  "/members": true,
-  "/payments": true,
-  "/balances": true,
-  "/entry-reconciliation": true,
-  "/shifts": true,
-  "/exceptions": true,
-  "/notifications": true,
-  "/reports": true,
-  "/audit-logs": true,
-  "/settings": true,
-};
+import { protectedModuleHrefs } from "@/lib/modules";
 
 function getProtectedRoute(pathname: string) {
-  const route = Object.keys(protectedRoutes).find(
+  const route = protectedModuleHrefs.find(
     (href) => pathname === href || pathname.startsWith(`${href}/`),
   );
 
-  return route as ModuleHref | undefined;
+  return route;
 }
 
 export async function proxy(request: NextRequest) {
@@ -70,10 +55,6 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    if (requestedModule === "/front-desk" && request.cookies.has("gymledger_staff_pin_session")) {
-      return response;
-    }
-
     if (requestedModule || isUnauthorized) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";

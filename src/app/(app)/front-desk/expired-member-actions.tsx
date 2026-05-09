@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
-import { handleExpiredMemberEntry } from "@/app/(app)/front-desk/actions";
+import { checkGcashReferenceDuplicate, handleExpiredMemberEntry } from "@/app/(app)/front-desk/actions";
 import {
   expiredMemberActionSchema,
   type ExpiredMemberActionValues,
@@ -19,6 +19,8 @@ import { StateMessage } from "@/components/ui/state-message";
 import { cn } from "@/lib/utils";
 
 type ExpiredMemberActionsProps = {
+  allowUtang?: boolean;
+  defaultAmount: number;
   memberId: string;
 };
 
@@ -26,19 +28,19 @@ const actionOptions = [
   {
     description: "Create a settled entry with a walk-in payment.",
     icon: Banknote,
-    label: "Pay Walk-In",
+    label: "Pay walk-in",
     value: "pay_walk_in",
   },
   {
     description: "Create a pending entry and balance with a required reason.",
     icon: HandCoins,
-    label: "Record Utang",
+    label: "Record utang",
     value: "record_utang",
   },
   {
     description: "Create an exception entry for owner review.",
     icon: ShieldAlert,
-    label: "Owner Override",
+    label: "Ask owner",
     value: "owner_override",
   },
 ] as const;
@@ -61,10 +63,12 @@ const paymentMethods = [
   },
 ] as const;
 
-export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
+export function ExpiredMemberActions({ allowUtang = true, defaultAmount, memberId }: ExpiredMemberActionsProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [referenceWarning, setReferenceWarning] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const visibleActions = allowUtang ? actionOptions : actionOptions.filter((a) => a.value !== "record_utang");
   const {
     formState: { errors },
     control,
@@ -74,7 +78,8 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
   } = useForm<ExpiredMemberActionValues>({
     defaultValues: {
       action_type: "pay_walk_in",
-      amount: 0,
+      amount: defaultAmount,
+      gcash_reference_number: "",
       payment_method: "cash",
       reason: "",
     },
@@ -82,23 +87,40 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
   });
   const selectedAction = useWatch({ control, name: "action_type" });
   const selectedPaymentMethod = useWatch({ control, name: "payment_method" });
+  const gcashReference = useWatch({ control, name: "gcash_reference_number" });
   const needsAmount = selectedAction !== "owner_override";
   const needsPaymentMethod = selectedAction === "pay_walk_in";
+  const needsGcashReference = selectedAction === "pay_walk_in" && selectedPaymentMethod === "gcash";
   const submitLabel = selectedAction === "pay_walk_in"
     ? "Record paid entry"
     : selectedAction === "record_utang"
       ? "Record utang entry"
       : "Create owner review";
 
+  function checkDuplicateReference(referenceNumber: string | undefined) {
+    const cleanReference = referenceNumber?.trim();
+
+    if (!needsGcashReference || !cleanReference) {
+      setReferenceWarning(null);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await checkGcashReferenceDuplicate(cleanReference);
+      setReferenceWarning(result.warning ?? null);
+    });
+  }
+
   function onSubmit(values: ExpiredMemberActionValues) {
     if (
-      values.action_type !== "pay_walk_in" &&
-      !window.confirm("This expired member entry needs a visible reason and will be sent for review. Continue?")
+      values.action_type === "owner_override" &&
+      !window.confirm("This expired member entry will be sent for owner review. Continue?")
     ) {
       return;
     }
 
     setServerError(null);
+    setReferenceWarning(null);
     startTransition(async () => {
       const result = await handleExpiredMemberEntry(memberId, values);
 
@@ -107,9 +129,14 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
         return;
       }
 
+      if (result.warning) {
+        setReferenceWarning(result.warning);
+      }
+
       reset({
         action_type: values.action_type,
-        amount: 0,
+        amount: defaultAmount,
+        gcash_reference_number: "",
         payment_method: values.payment_method,
         reason: "",
       });
@@ -118,10 +145,10 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
   }
 
   return (
-    <div className="mt-5 rounded-3xl border-2 border-amber-300 bg-amber-50 p-4">
+    <div className="mt-5 rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.16em] text-amber-900">
+          <p className="text-sm font-bold uppercase tracking-[0.14em] text-amber-900">
             Expired Member Handling
           </p>
           <p className="mt-1 text-base font-bold leading-7 text-amber-950">
@@ -129,10 +156,10 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
           </p>
         </div>
         <Link
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-ledger-ink px-5 py-2.5 text-sm font-bold text-ledger-paper transition hover:bg-ledger-moss"
-          href={`/members/${memberId}`}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-n-ink px-5 py-2.5 text-sm font-bold text-white transition hover:bg-n-dark"
+          href={`/members/${memberId}#renew`}
         >
-          Renew Now
+          Renew
         </Link>
       </div>
 
@@ -144,31 +171,31 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
         ) : null}
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-black text-ledger-ink">Entry action</legend>
+          <legend className="text-sm font-bold text-n-ink">Entry action</legend>
           <div className="grid gap-3 lg:grid-cols-3">
-            {actionOptions.map((option) => {
+            {visibleActions.map((option) => {
               const Icon = option.icon;
               const checked = selectedAction === option.value;
 
               return (
                 <label
                   className={cn(
-                    "flex min-h-32 cursor-pointer flex-col justify-between rounded-2xl border p-4 transition active:scale-[0.99]",
+                    "flex min-h-32 cursor-pointer flex-col justify-between rounded-lg border p-4 transition active:scale-[0.99]",
                     checked
-                      ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                      : "border-amber-200 bg-white/75 text-ledger-ink hover:border-ledger-moss",
+                      ? "border-n-ink bg-n-ink text-white"
+                      : "border-amber-200 bg-white/75 text-n-ink hover:border-n-dark",
                   )}
                   key={option.value}
                 >
                   <input className="sr-only" type="radio" value={option.value} {...register("action_type")} />
                   <span className="flex items-center justify-between gap-3">
-                    <span className="text-lg font-black">{option.label}</span>
+                    <span className="text-lg font-bold">{option.label}</span>
                     <Icon
                       aria-hidden="true"
-                      className={cn("size-5", checked ? "text-ledger-lime" : "text-ledger-moss")}
+                      className={cn("size-5", checked ? "text-white" : "text-n-muted")}
                     />
                   </span>
-                  <span className={cn("text-sm font-bold", checked ? "text-ledger-paper/75" : "text-ledger-moss")}>
+                  <span className={cn("text-sm font-bold", checked ? "text-white/75" : "text-n-dim")}>
                     {option.description}
                   </span>
                 </label>
@@ -186,7 +213,7 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
               <Label htmlFor={`expired_member_amount_${memberId}`}>Amount</Label>
               <Input
                 id={`expired_member_amount_${memberId}`}
-                className="min-h-14 text-lg font-black"
+                className="min-h-14 text-lg font-bold"
                 inputMode="decimal"
                 min="0"
                 step="0.01"
@@ -201,7 +228,7 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
 
           {needsPaymentMethod ? (
             <fieldset className="space-y-2">
-              <legend className="text-sm font-black text-ledger-ink">Payment method</legend>
+              <legend className="text-sm font-bold text-n-ink">Payment method</legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
@@ -210,10 +237,10 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
                   return (
                     <label
                       className={cn(
-                        "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition",
+                        "flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition",
                         checked
-                          ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                          : "border-amber-200 bg-white/75 text-ledger-ink hover:border-ledger-moss",
+                          ? "border-n-ink bg-n-ink text-white"
+                          : "border-amber-200 bg-white/75 text-n-ink hover:border-n-dark",
                       )}
                       key={method.value}
                     >
@@ -236,12 +263,38 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
           ) : null}
         </div>
 
+        {needsGcashReference ? (
+          <div className="space-y-2">
+            <Label htmlFor={`expired_member_gcash_reference_${memberId}`}>GCash reference number</Label>
+            <Input
+              autoComplete="off"
+              className="min-h-14 text-lg font-bold"
+              id={`expired_member_gcash_reference_${memberId}`}
+              maxLength={80}
+              placeholder="From customer confirmation"
+              {...register("gcash_reference_number", {
+                onBlur: () => checkDuplicateReference(gcashReference),
+              })}
+            />
+            {referenceWarning ? (
+              <p className="text-sm font-bold text-amber-800">{referenceWarning}</p>
+            ) : (
+              <p className="text-sm font-medium text-n-dim">
+                Entry is allowed after staff checks the confirmation. Owner review happens later.
+              </p>
+            )}
+            {errors.gcash_reference_number ? (
+              <p className="text-sm font-bold text-red-700">{errors.gcash_reference_number.message}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <Label htmlFor={`expired_member_reason_${memberId}`}>
             {selectedAction === "pay_walk_in" ? "Reason / note" : "Reason"}
           </Label>
           <textarea
-            className="min-h-24 w-full rounded-2xl border border-amber-200 bg-white/85 px-4 py-3 text-base font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+            className="min-h-24 w-full rounded-lg border border-amber-200 bg-white/85 px-4 py-3 text-base font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
             id={`expired_member_reason_${memberId}`}
             placeholder={selectedAction === "pay_walk_in" ? "Optional" : "Required"}
             {...register("reason")}
@@ -250,7 +303,7 @@ export function ExpiredMemberActions({ memberId }: ExpiredMemberActionsProps) {
         </div>
 
         <div className="flex justify-end">
-          <Button className="min-h-14 w-full gap-2 rounded-2xl text-base sm:w-auto" disabled={isPending} type="submit">
+          <Button className="min-h-14 w-full gap-2 rounded-lg text-base sm:w-auto" disabled={isPending} type="submit">
             <AlertTriangle aria-hidden="true" className="size-4" />
             {isPending ? "Recording..." : submitLabel}
           </Button>

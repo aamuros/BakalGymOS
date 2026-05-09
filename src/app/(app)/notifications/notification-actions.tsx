@@ -18,7 +18,7 @@ export function MarkNotificationReadButton({
 
   return (
     <Button
-      className="h-10 rounded-2xl px-3 text-xs"
+      className="h-10 rounded-lg px-3 text-xs"
       disabled={isPending}
       onClick={() => startTransition(() => void markNotificationRead(notificationId))}
       type="button"
@@ -35,7 +35,7 @@ export function MarkAllNotificationsReadButton() {
 
   return (
     <Button
-      className="min-h-11 rounded-2xl px-4 text-xs"
+      className="min-h-11 rounded-lg px-4 text-xs"
       disabled={isPending}
       onClick={() => startTransition(() => void markAllNotificationsRead())}
       type="button"

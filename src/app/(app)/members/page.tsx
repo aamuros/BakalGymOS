@@ -3,9 +3,10 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { canManageMembers } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
-import { cn } from "@/lib/utils";
+import { deriveMemberAccess, getPlanName, type MemberAccessStatus, type SubscriptionAccess } from "@/lib/member-access";
 import { createClient } from "@/lib/supabase/server";
 
 type MembersPageProps = {
@@ -17,19 +18,38 @@ type MemberListItem = {
   full_name: string;
   phone: string | null;
   member_code: string;
-  status: "active" | "expired" | "banned" | "inactive" | "archived";
+  status: "active" | "inactive" | "banned" | "archived";
 };
 
-const statusStyles: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  expired: "bg-amber-100 text-amber-800",
-  banned: "bg-red-100 text-red-800",
-  inactive: "bg-slate-200 text-slate-700",
-  archived: "bg-slate-200 text-slate-700",
+type MemberSubscriptionRow = SubscriptionAccess & {
+  member_id: string;
 };
 
 function cleanSearchTerm(value: string) {
   return value.trim().replace(/[%,]/g, "");
+}
+
+function getStatusTone(status: string): "active" | "danger" | "neutral" {
+  if (status === "active") return "active";
+  if (status === "banned") return "danger";
+  return "neutral";
+}
+
+function getAccessTone(status: MemberAccessStatus): "active" | "danger" | "warn" {
+  return status === "good" ? "active" : status === "banned" || status === "archived" ? "danger" : "warn";
+}
+
+function getAccessLabel(status: MemberAccessStatus) {
+  const labels: Record<MemberAccessStatus, string> = {
+    archived: "Archived",
+    banned: "Banned",
+    entry_limit_reached: "No entries",
+    expired: "Expired",
+    good: "Active",
+    inactive: "Inactive",
+  };
+
+  return labels[status];
 }
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
@@ -56,20 +76,57 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
     throw new Error(error.message);
   }
 
+  const memberRows = (members ?? []) as MemberListItem[];
+  const memberIds = memberRows.map((member) => member.id);
+  const [subscriptionsResult, operationalSettingsResult] = await Promise.all([
+    memberIds.length
+      ? supabase
+        .from("member_subscriptions")
+        .select("member_id, starts_at, ends_at, status, entries_used, membership_plans(name, entry_limit, is_unlimited)")
+        .in("member_id", memberIds)
+        .order("ends_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "operational_settings")
+      .maybeSingle(),
+  ]);
+
+  const subscriptions = subscriptionsResult.data;
+  const subscriptionsError = subscriptionsResult.error;
+
+  if (subscriptionsError) {
+    throw new Error(subscriptionsError.message);
+  }
+
+  const latestSubscriptionByMember = ((subscriptions ?? []) as MemberSubscriptionRow[]).reduce<Record<string, MemberSubscriptionRow>>((lookup, subscription) => {
+    if (!lookup[subscription.member_id]) {
+      lookup[subscription.member_id] = subscription;
+    }
+
+    return lookup;
+  }, {});
+
+  const opSettings = operationalSettingsResult.data?.value;
+  const gracePeriodDays = opSettings && typeof opSettings === "object"
+    ? Number((opSettings as { grace_period_days?: unknown }).grace_period_days ?? 0)
+    : 0;
+
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+          <p className="text-xs font-semibold text-n-muted">
             Member Management
           </p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+          <h2 className="mt-2 text-xl font-bold text-n-ink sm:text-2xl">
             Members
           </h2>
         </div>
         {canEdit ? (
           <Link
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ledger-ink px-5 py-2.5 text-sm font-bold text-ledger-paper transition hover:bg-ledger-moss"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-n-ink px-5 py-2.5 text-sm font-bold text-white transition hover:bg-n-dark active:scale-[0.98]"
             href="/members/new"
           >
             <Plus aria-hidden="true" className="size-4" />
@@ -78,11 +135,11 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         ) : null}
       </div>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <form className="relative" action="/members">
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ledger-moss"
+            className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-n-dim"
           />
           <Input
             className="pl-12"
@@ -94,48 +151,52 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         </form>
       </Card>
 
-      <div className="overflow-hidden rounded-3xl border border-ledger-line bg-ledger-paper/90 shadow-ledger">
-        <div className="grid grid-cols-[1fr_auto] gap-3 border-b border-ledger-line px-5 py-4 text-xs font-black uppercase tracking-[0.18em] text-ledger-moss md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]">
+      <div className="overflow-hidden rounded-lg border border-n-border bg-white shadow-n">
+        <div className="grid grid-cols-[1fr_auto] gap-3 border-b border-n-border px-5 py-4 text-xs font-semibold text-n-muted md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_auto]">
           <span>Name</span>
           <span className="hidden md:block">Phone</span>
-          <span className="hidden md:block">Member ID</span>
+          <span className="hidden md:block">Plan</span>
+          <span className="hidden md:block">Member status</span>
           <span>Status</span>
         </div>
 
-        {(members as MemberListItem[] | null)?.length ? (
-          (members as MemberListItem[]).map((member) => (
+        {memberRows.length ? (
+          memberRows.map((member) => {
+            const subscription = latestSubscriptionByMember[member.id] ?? null;
+            const accessStatus = deriveMemberAccess(member.status, subscription, undefined, gracePeriodDays);
+
+            return (
             <Link
-              className="grid grid-cols-[1fr_auto] gap-3 border-b border-ledger-line px-5 py-4 transition last:border-b-0 hover:bg-white/70 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto]"
+              className="grid grid-cols-[1fr_auto] gap-3 border-b border-n-border px-5 py-4 transition last:border-b-0 hover:bg-white/70 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_auto]"
               href={`/members/${member.id}`}
               key={member.id}
             >
               <span className="min-w-0">
-                <span className="block truncate font-black text-ledger-ink">{member.full_name}</span>
-                <span className="mt-1 block text-sm font-bold text-ledger-moss md:hidden">
+                <span className="block truncate font-bold text-n-ink">{member.full_name}</span>
+                <span className="mt-1 block text-sm font-medium text-n-dim md:hidden">
                   {member.member_code} · {member.phone || "No phone"}
                 </span>
               </span>
-              <span className="hidden text-sm font-bold text-ledger-moss md:block">
+              <span className="hidden text-sm font-medium text-n-dim md:block">
                 {member.phone || "No phone"}
               </span>
-              <span className="hidden text-sm font-black text-ledger-ink md:block">
-                {member.member_code}
+              <span className="hidden text-sm font-bold text-n-ink md:block">
+                {getPlanName(subscription)}
               </span>
-              <span
-                className={cn(
-                  "inline-flex h-8 items-center rounded-full px-3 text-xs font-black uppercase",
-                  statusStyles[member.status],
-                )}
-              >
+              <StatusBadge className="hidden md:inline-flex" tone={getStatusTone(member.status)}>
                 {member.status}
-              </span>
+              </StatusBadge>
+              <StatusBadge tone={getAccessTone(accessStatus)}>
+                {getAccessLabel(accessStatus)}
+              </StatusBadge>
             </Link>
-          ))
+          );
+          })
         ) : (
           <div className="flex flex-col items-center px-5 py-16 text-center">
-            <UserRoundCheck aria-hidden="true" className="size-10 text-ledger-moss" />
-            <p className="mt-4 font-black text-ledger-ink">No members found</p>
-            <p className="mt-1 text-sm font-bold text-ledger-moss">
+            <UserRoundCheck aria-hidden="true" className="size-10 text-n-dim" />
+            <p className="mt-4 font-bold text-n-ink">No members found</p>
+            <p className="mt-1 text-sm font-medium text-n-dim">
               {q ? "Try a different search term." : "Add the first member to start tracking records."}
             </p>
           </div>

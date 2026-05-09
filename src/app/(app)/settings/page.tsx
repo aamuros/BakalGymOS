@@ -12,9 +12,11 @@ import {
   ExceptionTypesForm,
   GymProfileForm,
   MembershipRateForms,
+  OperationalSettingsForm,
   PaymentSettingsForm,
   RolePermissionsForm,
   StaffAccessForms,
+  WalkInRateForm,
 } from "@/app/(app)/settings/admin-settings-forms";
 import {
   editablePermissionRoles,
@@ -22,12 +24,16 @@ import {
   type ExceptionTypeSettingsValues,
   type GymProfileValues,
   type MembershipRateValues,
+  type OperationalSettingsValues,
   type PaymentSettingsValues,
   type RolePermissionValues,
   type StaffAccessValues,
+  type WalkInRateValues,
 } from "@/app/(app)/settings/schema";
 import { StaffPinControls } from "@/app/(app)/settings/staff-pin-controls";
+import { LogoutButton } from "@/components/app/logout-button";
 import { Card } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { canManageSystemSettings, roleLabels } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
@@ -103,9 +109,20 @@ const defaultPaymentSettings: PaymentSettingsValues = {
   require_gcash_proof: true,
 };
 
+const defaultWalkInRate: WalkInRateValues = {
+  amount: 100,
+  currency: "PHP",
+};
+
+const defaultOperationalSettings: OperationalSettingsValues = {
+  allow_utang: true,
+  grace_period_days: 0,
+  max_utang_warning_amount: 500,
+};
+
 const defaultExceptionTypes: ExceptionTypeSettingsValues = {
   types: [
-    { enabled: true, key: "pending_payment", label: "Pending payment", requiresApproval: true },
+    { enabled: true, key: "pending_payment", label: "Utang / Pay later", requiresApproval: true },
     { enabled: true, key: "staff_error", label: "Staff error", requiresApproval: true },
     { enabled: true, key: "system_issue", label: "System issue", requiresApproval: true },
     { enabled: true, key: "member_dispute", label: "Member dispute", requiresApproval: true },
@@ -194,18 +211,24 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-5 flex items-start gap-3">
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ledger-lime text-ledger-ink">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-n-hover text-n-muted">
         <Icon aria-hidden="true" className="size-5" />
       </span>
       <div>
-        <h3 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+        <h3 className="text-lg font-bold text-n-ink">
           {title}
         </h3>
-        <p className="mt-1 text-sm font-bold leading-6 text-ledger-moss">{description}</p>
+        <p className="mt-1 text-sm font-medium leading-6 text-n-dim">{description}</p>
       </div>
     </div>
   );
 }
+
+const staffStatusTone = {
+  active: "active" as const,
+  inactive: "neutral" as const,
+  terminated: "danger" as const,
+};
 
 export default async function SettingsPage() {
   const profile = await requireModuleAccess("/settings");
@@ -228,7 +251,7 @@ export default async function SettingsPage() {
     supabase
       .from("settings")
       .select("key, value")
-      .in("key", ["gym_profile", "payment_settings", "exception_type_settings"]),
+      .in("key", ["gym_profile", "payment_settings", "exception_type_settings", "walk_in_rate", "operational_settings"]),
     supabase
       .from("role_permissions")
       .select("role, permission_key, enabled")
@@ -246,28 +269,28 @@ export default async function SettingsPage() {
   const staffAccessValues = staffRows.map(toStaffAccessValues).filter(Boolean) as StaffAccessValues[];
 
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+        <p className="text-xs font-semibold text-n-muted">
           System Settings
         </p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+        <h2 className="mt-2 text-2xl font-bold text-n-ink">
           Admin Settings and Permissions
         </h2>
-        <p className="mt-2 text-sm font-bold text-ledger-moss">
+        <p className="mt-2 text-sm font-medium text-n-dim">
           {roleLabels[profile.role]} controls for roles, rates, staff access, and gym operations.
         </p>
       </div>
 
       {!canManageSettings ? (
-        <Card className="rounded-3xl border-amber-200 bg-amber-50 shadow-none">
-          <p className="font-black text-amber-900">
+        <Card className="border-amber-200 bg-amber-50">
+          <p className="font-bold text-amber-900">
             Only owner or admin accounts can change sensitive settings.
           </p>
         </Card>
       ) : null}
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SectionHeader
           description="Configure the gym identity used across owner/admin workflows."
           icon={Building2}
@@ -278,7 +301,7 @@ export default async function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SectionHeader
           description="Control which roles can record payments, correct payments, approve exceptions, view reports, manage staff, change rates, and export data."
           icon={ShieldCheck}
@@ -291,7 +314,7 @@ export default async function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SectionHeader
           description="Update staff roles, profile status, and operational capabilities without exposing privilege changes to the client."
           icon={UserCog}
@@ -300,7 +323,7 @@ export default async function SettingsPage() {
         {canManageSettings ? <StaffAccessForms staff={staffAccessValues} /> : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SectionHeader
           description="Set plan prices, durations, limits, and availability. Rate changes are audited."
           icon={BadgeDollarSign}
@@ -311,7 +334,18 @@ export default async function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
+        <SectionHeader
+          description="Default walk-in entry rate used by the Front Desk. Staff can override per entry."
+          icon={BadgeDollarSign}
+          title="Walk-In Rate"
+        />
+        {canManageSettings ? (
+          <WalkInRateForm defaultValues={asObject(settingMap.get("walk_in_rate"), defaultWalkInRate)} />
+        ) : null}
+      </Card>
+
+      <Card>
         <SectionHeader
           description="Set accepted payment methods and proof requirements."
           icon={ReceiptText}
@@ -322,7 +356,18 @@ export default async function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
+        <SectionHeader
+          description="Control utang behavior, warning thresholds, and membership expiry grace period."
+          icon={SlidersHorizontal}
+          title="Operational Settings"
+        />
+        {canManageSettings ? (
+          <OperationalSettingsForm defaultValues={asObject(settingMap.get("operational_settings"), defaultOperationalSettings)} />
+        ) : null}
+      </Card>
+
+      <Card>
         <SectionHeader
           description="Maintain the exception types staff can classify for review and reporting."
           icon={SlidersHorizontal}
@@ -333,7 +378,7 @@ export default async function SettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SectionHeader
           description="PIN sessions are limited to the Front Desk Portal and actions stay attached to the staff profile."
           icon={KeyRound}
@@ -346,19 +391,19 @@ export default async function SettingsPage() {
             const hasPin = Boolean(staffProfile.pin_set_at);
 
             return (
-              <div className="rounded-3xl border border-ledger-line bg-white/60 p-5" key={staffProfile.id}>
+              <div className="rounded-lg border border-n-border bg-white/60 p-5" key={staffProfile.id}>
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <h4 className="break-words font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                    <h4 className="break-words text-lg font-bold text-n-ink">
                       {staff?.full_name ?? "Staff member"}
                     </h4>
-                    <p className="mt-1 text-sm font-bold text-ledger-moss">
+                    <p className="mt-1 text-sm font-medium text-n-dim">
                       {staffProfile.employee_code ?? staffProfile.job_title ?? staff?.email ?? "No staff code"}
                     </p>
                   </div>
-                  <span className="inline-flex h-8 items-center rounded-full bg-ledger-paper px-3 text-xs font-black uppercase text-ledger-moss">
+                  <StatusBadge tone={staffStatusTone[staffProfile.status] ?? "neutral"}>
                     {staffProfile.status}
-                  </span>
+                  </StatusBadge>
                 </div>
                 <dl className="mb-5 grid gap-3 sm:grid-cols-3">
                   <StaffFact label="Role" value={staff?.role ? roleLabels[staff.role] : "Staff"} />
@@ -377,15 +422,23 @@ export default async function SettingsPage() {
           })}
         </div>
       </Card>
+
+      <Card>
+        <h2 className="text-lg font-bold text-n-ink">Account</h2>
+        <p className="mt-1 text-sm text-n-dim">Sign out of your account.</p>
+        <div className="mt-4">
+          <LogoutButton />
+        </div>
+      </Card>
     </div>
   );
 }
 
 function StaffFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-ledger-line bg-ledger-paper/70 px-4 py-3">
-      <dt className="text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-black text-ledger-ink">{value}</dd>
+    <div className="rounded-lg border border-n-border bg-n-hover px-4 py-3">
+      <dt className="text-xs font-semibold text-n-muted">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-bold text-n-ink">{value}</dd>
     </div>
   );
 }

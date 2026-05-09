@@ -70,11 +70,11 @@ export function QrScanner() {
   }
 
   return (
-    <div className="rounded-2xl border border-ledger-line bg-white/70 p-4">
+    <div className="rounded-lg border border-n-border bg-white/70 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-black text-ledger-ink">QR scan</p>
-          <p className="mt-1 text-sm font-bold text-ledger-moss">
+          <p className="text-sm font-bold text-n-ink">QR scan</p>
+          <p className="mt-1 text-sm font-medium text-n-dim">
             Scan a member card to open the check-in flow.
           </p>
         </div>
@@ -90,9 +90,9 @@ export function QrScanner() {
           </Button>
         )}
       </div>
-      <div className={isScanning ? "mt-4 overflow-hidden rounded-2xl bg-white" : "hidden"} id={readerElementId} />
+      <div className={isScanning ? "mt-4 overflow-hidden rounded-lg bg-white" : "hidden"} id={readerElementId} />
       {message ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
           {message}
         </div>
       ) : null}

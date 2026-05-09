@@ -34,7 +34,7 @@ const typeOptions = [
   { label: "Free Entry", value: "free_entry" },
   { label: "Guest Entry", value: "guest_entry" },
   { label: "Trial Session", value: "trial_session" },
-  { label: "Pending Payment", value: "pending_payment" },
+  { label: "Utang / Pay later", value: "pending_payment" },
   { label: "GCash Pending", value: "gcash_pending" },
   { label: "Expired But Allowed", value: "expired_but_allowed" },
   { label: "Owner Allowed", value: "owner_allowed" },
@@ -87,7 +87,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
   return (
     <form className="grid gap-5" onSubmit={handleSubmit(onSubmit)}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
@@ -96,7 +96,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
         <div className="space-y-2">
           <Label htmlFor="exception_member_id">Member involved</Label>
           <select
-            className="min-h-12 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 text-base text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+            className="min-h-12 w-full rounded-lg border border-n-border bg-white/85 px-4 text-base text-n-ink outline-none transition focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
             id="exception_member_id"
             {...register("member_id", {
               setValueAs: (value) => (value ? value : undefined),
@@ -131,7 +131,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
         <div className="space-y-2">
           <Label htmlFor="exception_type">Exception type</Label>
           <select
-            className="min-h-12 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 text-base text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+            className="min-h-12 w-full rounded-lg border border-n-border bg-white/85 px-4 text-base text-n-ink outline-none transition focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
             id="exception_type"
             {...register("exception_type")}
           >
@@ -174,7 +174,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
       <div className="space-y-2">
         <Label htmlFor="exception_related_entry_id">Related entry</Label>
         <select
-          className="min-h-12 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 text-base text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-12 w-full rounded-lg border border-n-border bg-white/85 px-4 text-base text-n-ink outline-none transition focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id="exception_related_entry_id"
           {...register("related_entry_id", {
             setValueAs: (value) => (value ? value : undefined),
@@ -195,7 +195,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
       <div className="space-y-2">
         <Label htmlFor="exception_reason">Reason</Label>
         <textarea
-          className="min-h-28 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-base font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-28 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-base font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id="exception_reason"
           placeholder="What happened and why this needs owner review"
           {...register("reason")}
@@ -204,7 +204,7 @@ export function ExceptionForm({ entries, members }: ExceptionFormProps) {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="flex items-center gap-2 text-sm font-bold text-ledger-moss">
+        <p className="flex items-center gap-2 text-sm font-bold text-n-dark">
           <AlertTriangle aria-hidden="true" className="size-4" />
           New exceptions default to needs review and are linked to your active shift.
         </p>

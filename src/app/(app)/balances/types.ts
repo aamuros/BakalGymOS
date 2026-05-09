@@ -13,11 +13,46 @@ export type BalanceListRow = {
   paid_amount: number | string | null;
   due_at: string | null;
   last_payment_at: string | null;
+  shift_id: string | null;
   settled_at: string | null;
   note: string | null;
   created_at: string;
   members: { full_name: string; member_code: string } | { full_name: string; member_code: string }[] | null;
   entries: { entered_at: string } | { entered_at: string }[] | null;
+  created_by_profile:
+    | { full_name: string }
+    | { full_name: string }[]
+    | null;
+  shifts:
+    | {
+        id: string;
+        opened_at: string;
+        staff_profiles:
+          | {
+              employee_code: string | null;
+              profiles: { full_name: string } | { full_name: string }[] | null;
+            }
+          | {
+              employee_code: string | null;
+              profiles: { full_name: string } | { full_name: string }[] | null;
+            }[]
+          | null;
+      }
+    | {
+        id: string;
+        opened_at: string;
+        staff_profiles:
+          | {
+              employee_code: string | null;
+              profiles: { full_name: string } | { full_name: string }[] | null;
+            }
+          | {
+              employee_code: string | null;
+              profiles: { full_name: string } | { full_name: string }[] | null;
+            }[]
+          | null;
+      }[]
+    | null;
 };
 
 export type BalancePaymentRow = {
@@ -60,10 +95,13 @@ export type BalanceViewModel = {
   lastPaymentAt: string | null;
   lastPaymentBy: string | null;
   lastPaymentShiftId: string | null;
+  paymentHistory: BalanceHistory[];
   notes: string | null;
   dueAt: string | null;
   createdAt: string;
+  recordedBy: string | null;
+  shiftId: string | null;
+  shiftLabel: string | null;
   settledAt: string | null;
   latestPayment: BalanceHistory | null;
 };
-

@@ -1,19 +1,19 @@
 import {
   AlertTriangle,
   Banknote,
-  ClipboardCheck,
-  Clock3,
-  LayoutDashboard,
-  ReceiptText,
-  Smartphone,
+  CircleDollarSign,
+  ShieldCheck,
   UserRoundCheck,
   Users,
+  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
-import { roleLabels, type AppRole } from "@/lib/auth/permissions";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { type AppRole } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -109,12 +109,6 @@ const pesoFormatter = new Intl.NumberFormat("en-PH", {
   style: "currency",
 });
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-PH", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Manila",
-});
-
 const timeFormatter = new Intl.DateTimeFormat("en-PH", {
   hour: "numeric",
   minute: "2-digit",
@@ -179,6 +173,10 @@ export default async function OwnerDashboardPage() {
     cashPaymentsResult,
     gcashPaymentsResult,
     pendingBalancesResult,
+    utangAddedResult,
+    utangPaidResult,
+    ownerOverridesResult,
+    cashVarianceResult,
     activeShiftsResult,
     varianceAlertsResult,
     recentEntriesResult,
@@ -210,7 +208,7 @@ export default async function OwnerDashboardPage() {
     supabase
       .from("gcash_proofs")
       .select("id", { count: "exact", head: true })
-      .in("proof_status", ["staff_checked", "disputed", "needs_follow_up"]),
+      .in("proof_status", ["for_review", "rejected", "follow_up"]),
     supabase
       .from("payments")
       .select("amount")
@@ -231,6 +229,30 @@ export default async function OwnerDashboardPage() {
       .gte("created_at", today.start)
       .lt("created_at", today.end)
       .in("status", ["pending", "needs_review"]),
+    supabase
+      .from("walk_in_balances")
+      .select("amount")
+      .gte("created_at", today.start)
+      .lt("created_at", today.end),
+    supabase
+      .from("payments")
+      .select("amount")
+      .eq("purpose", "balance_payment")
+      .eq("status", "completed")
+      .gte("paid_at", today.start)
+      .lt("paid_at", today.end),
+    supabase
+      .from("exceptions")
+      .select("id", { count: "exact", head: true })
+      .eq("exception_type", "owner_approved_free_entry")
+      .gte("created_at", today.start)
+      .lt("created_at", today.end),
+    supabase
+      .from("shifts")
+      .select("cash_difference")
+      .gte("closed_at", today.start)
+      .lt("closed_at", today.end)
+      .eq("status", "closed"),
     supabase
       .from("shifts")
       .select("id, opened_at, opening_cash, expected_cash, staff_profiles!shifts_staff_profile_id_fkey(employee_code, job_title, profiles!staff_profiles_profile_id_fkey(full_name))")
@@ -262,7 +284,7 @@ export default async function OwnerDashboardPage() {
     supabase
       .from("gcash_proofs")
       .select("id, created_at, proof_status, gcash_reference_number, sender_name, payments(amount, purpose, status, members(full_name, member_code)), uploaded_by_profile:profiles!gcash_proofs_uploaded_by_fkey(full_name)")
-      .in("proof_status", ["staff_checked", "disputed", "needs_follow_up"])
+      .in("proof_status", ["for_review", "rejected", "follow_up"])
       .order("created_at", { ascending: false })
       .limit(6),
   ]);
@@ -276,6 +298,10 @@ export default async function OwnerDashboardPage() {
     cashPaymentsResult.error ??
     gcashPaymentsResult.error ??
     pendingBalancesResult.error ??
+    utangAddedResult.error ??
+    utangPaidResult.error ??
+    ownerOverridesResult.error ??
+    cashVarianceResult.error ??
     activeShiftsResult.error ??
     varianceAlertsResult.error ??
     recentEntriesResult.error ??
@@ -289,6 +315,13 @@ export default async function OwnerDashboardPage() {
   const cashCollected = sumAmounts(cashPaymentsResult.data);
   const gcashCollected = sumAmounts(gcashPaymentsResult.data);
   const pendingUtang = sumAmounts(pendingBalancesResult.data);
+  const utangAdded = sumAmounts(utangAddedResult.data);
+  const utangPaid = sumAmounts(utangPaidResult.data);
+  const ownerOverrides = ownerOverridesResult.count ?? 0;
+  const totalCashVariance = (cashVarianceResult.data ?? []).reduce(
+    (sum, row) => sum + Number(row.cash_difference ?? 0),
+    0,
+  );
   const activeShifts = (activeShiftsResult.data ?? []) as ActiveShiftRow[];
   const varianceAlerts = (varianceAlertsResult.data ?? []) as VarianceShiftRow[];
   const recentEntries = (recentEntriesResult.data ?? []) as RecentEntryRow[];
@@ -299,87 +332,115 @@ export default async function OwnerDashboardPage() {
     (reviewExceptionsResult.count ?? 0) +
     (reviewGcashResult.count ?? 0);
 
-  return (
-    <div className="ledger-rise space-y-6">
-      <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
-        <Card className="relative overflow-hidden rounded-3xl shadow-none">
-          <div className="relative">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
-              <LayoutDashboard aria-hidden="true" className="size-7" />
-            </div>
-            <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
-              Owner Today
-            </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-5xl">
-              Today Dashboard
-            </h2>
-            <p className="mt-3 max-w-2xl text-base font-bold leading-7 text-ledger-moss">
-              {today.label}. Entries, collections, shifts, and review queues for owner decisions.
-            </p>
-          </div>
-        </Card>
+  const totalEntries = totalEntriesResult.count ?? 0;
+  const settledEntries = settledEntriesResult.count ?? 0;
 
-        <Card className="flex flex-col justify-between rounded-3xl shadow-none">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
-              Access
-            </p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
-              {roleLabels[profile.role]}
-            </p>
-          </div>
-          <p className="mt-6 rounded-2xl bg-ledger-lime/45 p-4 text-sm font-bold leading-6 text-ledger-ink">
-            Use this screen for quick review. Use Front Desk for live counter work.
-          </p>
-        </Card>
+  return (
+    <div className="page-enter space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-n-ink">Dashboard</h1>
+        <p className="mt-1 text-sm font-medium text-n-dim">{today.label}</p>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={Users} label="Today's total entries" value={(totalEntriesResult.count ?? 0).toLocaleString("en-PH")} />
-        <MetricCard icon={ClipboardCheck} label="Settled entries" value={(settledEntriesResult.count ?? 0).toLocaleString("en-PH")} />
-        <MetricCard icon={AlertTriangle} label="Needs review" tone="warn" value={needsReview.toLocaleString("en-PH")} />
-        <MetricCard icon={Banknote} label="Cash collected" value={formatAmount(cashCollected)} />
-        <MetricCard icon={Smartphone} label="GCash collected" value={formatAmount(gcashCollected)} />
-        <MetricCard icon={Clock3} label="Pending / Utang" tone={pendingUtang > 0 ? "warn" : "default"} value={formatAmount(pendingUtang)} />
-        <MetricCard icon={UserRoundCheck} label="Active shift/staff" value={activeShifts.length.toLocaleString("en-PH")} />
-        <MetricCard icon={ReceiptText} label="Cash variance alerts" tone={varianceAlerts.length ? "danger" : "default"} value={varianceAlerts.length.toLocaleString("en-PH")} />
+      {/* Metrics — Today Summary */}
+      <section className="space-y-4">
+        <p className="text-xs font-semibold text-n-muted">Today Summary</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={Users}
+            label="Total entries"
+            value={totalEntries.toLocaleString("en-PH")}
+            detail={`${settledEntries} settled`}
+          />
+          <MetricCard
+            icon={Banknote}
+            label="Cash collected"
+            value={formatAmount(cashCollected)}
+          />
+          <MetricCard
+            icon={WalletCards}
+            label="GCash collected"
+            value={formatAmount(gcashCollected)}
+          />
+          <MetricCard
+            icon={CircleDollarSign}
+            label="Utang added"
+            value={formatAmount(utangAdded)}
+            detail={pendingUtang > 0 ? `${formatAmount(pendingUtang)} still pending` : undefined}
+          />
+          <MetricCard
+            icon={CircleDollarSign}
+            label="Utang paid"
+            value={formatAmount(utangPaid)}
+          />
+          <MetricCard
+            icon={ShieldCheck}
+            label="Owner overrides"
+            value={ownerOverrides.toLocaleString("en-PH")}
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Needs review"
+            tone={needsReview > 0 ? "warn" : "default"}
+            value={needsReview.toLocaleString("en-PH")}
+            detail={pendingUtang > 0 ? `${formatAmount(pendingUtang)} pending utang` : undefined}
+          />
+          <MetricCard
+            icon={Banknote}
+            label="Cash variance"
+            value={formatAmount(totalCashVariance)}
+            tone={totalCashVariance !== 0 ? "danger" : "default"}
+            detail={varianceAlerts.length > 0 ? `${varianceAlerts.length} shift${varianceAlerts.length > 1 ? "s" : ""} with variance` : undefined}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={UserRoundCheck}
+            label="Staff on duty"
+            value={activeShifts.length.toLocaleString("en-PH")}
+            detail={activeShifts.length > 0 ? activeShifts.map((s) => {
+              const sp = relatedOne(s.staff_profiles);
+              const p = relatedOne(sp?.profiles);
+              return p?.full_name ?? "Staff";
+            }).join(", ") : undefined}
+          />
+          <MetricCard
+            icon={WalletCards}
+            label="GCash for review"
+            tone={(reviewGcashResult.count ?? 0) > 0 ? "warn" : "default"}
+            value={(reviewGcashResult.count ?? 0).toLocaleString("en-PH")}
+          />
+        </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
-        <Card className="rounded-3xl p-0 shadow-none">
+      {/* Recent entries + Active shifts */}
+      <section className="grid gap-5 xl:grid-cols-[1fr_22rem]">
+        <Card className="p-0">
           <PanelHeader
             actionHref="/front-desk"
-            actionLabel="Open Front Desk"
-            subtitle="Latest check-ins and walk-ins recorded today."
+            actionLabel="Front Desk"
             title="Recent entries"
           />
           {recentEntries.length ? (
-            <div className="divide-y divide-ledger-line">
+            <div className="divide-y divide-n-border">
               {recentEntries.map((entry) => {
                 const member = relatedOne(entry.members);
                 const payment = relatedOne(entry.payments);
                 const checkedBy = relatedOne(entry.checked_by_profile);
-                const personName = member?.full_name ?? entry.guest_name ?? "Guest entry";
+                const personName = member?.full_name ?? entry.guest_name ?? "Guest";
 
                 return (
-                  <div className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_auto]" key={entry.id}>
+                  <div className="flex items-center justify-between gap-3 px-5 py-3" key={entry.id}>
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="break-words font-black text-ledger-ink">{personName}</p>
-                        <span className="text-sm font-bold text-ledger-moss">
-                          {member?.member_code ?? "Walk-in"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm font-bold text-ledger-moss">
-                        {labelize(entry.settlement_type)} · {labelize(entry.status)} · by {checkedBy?.full_name ?? "Unknown staff"}
+                      <p className="truncate font-semibold text-n-ink">{personName}</p>
+                      <p className="mt-0.5 text-xs text-n-dim">
+                        {labelize(entry.settlement_type)} · {checkedBy?.full_name ?? "Staff"}
                       </p>
-                      {entry.notes ? (
-                        <p className="mt-1 text-sm font-bold leading-6 text-ledger-moss">{entry.notes}</p>
-                      ) : null}
                     </div>
-                    <div className="text-left md:text-right">
-                      <p className="font-black text-ledger-ink">{formatAmount(payment?.amount)}</p>
-                      <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold text-n-ink">{formatAmount(payment?.amount)}</p>
+                      <p className="text-xs text-n-dim">
                         {timeFormatter.format(new Date(entry.entered_at))}
                       </p>
                     </div>
@@ -388,153 +449,131 @@ export default async function OwnerDashboardPage() {
               })}
             </div>
           ) : (
-            <EmptyState title="No entries today" body="Check-ins and walk-ins will appear here as staff records them." />
+            <EmptyState title="No entries today" body="Check-ins and walk-ins will appear here." />
           )}
         </Card>
 
         <div className="space-y-5">
-          <Card className="rounded-3xl p-0 shadow-none">
+          <Card className="p-0">
             <PanelHeader
               actionHref="/shifts"
-              actionLabel="Open Shifts"
-              subtitle="Who is currently collecting money."
-              title="Active shift/staff"
+              actionLabel="Shifts"
+              title="Active shifts"
             />
             {activeShifts.length ? (
-              <div className="divide-y divide-ledger-line">
+              <div className="divide-y divide-n-border">
                 {activeShifts.map((shift) => {
                   const staffProfile = relatedOne(shift.staff_profiles);
                   const staff = relatedOne(staffProfile?.profiles);
 
                   return (
-                    <div className="px-5 py-4" key={shift.id}>
-                      <p className="font-black text-ledger-ink">{staff?.full_name ?? "Staff member"}</p>
-                      <p className="mt-1 text-sm font-bold text-ledger-moss">
-                        {staffProfile?.employee_code ?? staffProfile?.job_title ?? "No staff code"} · started {timeFormatter.format(new Date(shift.opened_at))}
-                      </p>
-                      <p className="mt-2 text-sm font-black text-ledger-ink">
-                        Expected cash {formatAmount(shift.expected_cash ?? shift.opening_cash)}
+                    <div className="px-5 py-3" key={shift.id}>
+                      <p className="font-semibold text-n-ink">{staff?.full_name ?? "Staff"}</p>
+                      <p className="mt-0.5 text-xs text-n-dim">
+                        Since {timeFormatter.format(new Date(shift.opened_at))} · Expected {formatAmount(shift.expected_cash ?? shift.opening_cash)}
                       </p>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <EmptyState title="No active shifts" body="No staff member is currently marked as collecting money." compact />
+              <EmptyState title="No active shifts" body="No staff is currently collecting." compact />
             )}
           </Card>
 
-          <Card className="rounded-3xl p-0 shadow-none">
-            <PanelHeader
-              actionHref="/shifts"
-              actionLabel="Review"
-              subtitle="Closed shifts with non-zero cash differences today."
-              title="Cash variance alerts"
-            />
-            {varianceAlerts.length ? (
-              <div className="divide-y divide-ledger-line">
+          {varianceAlerts.length > 0 && (
+            <Card className="p-0">
+              <PanelHeader
+                actionHref="/shifts"
+                actionLabel="Review"
+                title="Variance alerts"
+                variant="danger"
+              />
+              <div className="divide-y divide-n-border">
                 {varianceAlerts.map((shift) => {
                   const staffProfile = relatedOne(shift.staff_profiles);
                   const staff = relatedOne(staffProfile?.profiles);
 
                   return (
-                    <div className="px-5 py-4" key={shift.id}>
-                      <p className="font-black text-red-700">{formatAmount(shift.cash_difference)}</p>
-                      <p className="mt-1 text-sm font-bold text-ledger-moss">
-                        {staff?.full_name ?? "Staff member"} · closed {shift.closed_at ? timeFormatter.format(new Date(shift.closed_at)) : "today"}
+                    <div className="px-5 py-3" key={shift.id}>
+                      <p className="font-bold text-red-700">{formatAmount(shift.cash_difference)}</p>
+                      <p className="mt-0.5 text-xs text-n-dim">
+                        {staff?.full_name ?? "Staff"} · {shift.closed_at ? timeFormatter.format(new Date(shift.closed_at)) : "today"}
                       </p>
-                      {shift.variance_note ? (
-                        <p className="mt-2 text-sm font-bold leading-6 text-ledger-moss">{shift.variance_note}</p>
-                      ) : null}
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <EmptyState title="No variance alerts" body="Closed shifts today have no cash variance." compact />
-            )}
-          </Card>
+            </Card>
+          )}
         </div>
       </section>
 
+      {/* Review queues */}
       <section className="grid gap-5 xl:grid-cols-2">
-        <Card className="rounded-3xl p-0 shadow-none">
+        <Card className="p-0">
           <PanelHeader
             actionHref="/exceptions"
-            actionLabel="Open Exceptions"
-            subtitle="Recent unresolved exception records."
-            title="Recent exceptions"
+            actionLabel="Exceptions"
+            title="Exceptions"
+            count={recentExceptions.length || undefined}
           />
           {recentExceptions.length ? (
-            <div className="divide-y divide-ledger-line">
+            <div className="divide-y divide-n-border">
               {recentExceptions.map((item) => {
                 const member = relatedOne(item.members);
                 const creator = relatedOne(item.created_by_profile);
-                const personName = member?.full_name ?? item.person_name ?? "Unassigned person";
+                const personName = member?.full_name ?? item.person_name ?? "Unassigned";
 
                 return (
-                  <div className="px-5 py-4" key={item.id}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="break-words font-black text-ledger-ink">{personName}</p>
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-900">
-                        {labelize(item.status)}
-                      </span>
+                  <div className="flex items-center justify-between gap-3 px-5 py-3" key={item.id}>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-n-ink">{personName}</p>
+                      <p className="mt-0.5 text-xs text-n-dim">
+                        {labelize(item.exception_type)} · {item.amount === null ? "No amount" : formatAmount(item.amount)} · {creator?.full_name ?? "Staff"}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm font-black text-ledger-ink">
-                      {labelize(item.exception_type)} · {item.amount === null ? "No amount" : formatAmount(item.amount)}
-                    </p>
-                    <p className="mt-1 text-sm font-bold leading-6 text-ledger-moss">{item.reason}</p>
-                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
-                      {creator?.full_name ?? "Unknown staff"} · {dateTimeFormatter.format(new Date(item.created_at))}
-                    </p>
+                    <StatusBadge tone="warn" className="shrink-0">{labelize(item.status)}</StatusBadge>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <EmptyState title="No recent exceptions" body="Unresolved exceptions will appear here for management review." />
+            <EmptyState title="No exceptions" body="Unresolved exceptions will appear here." compact />
           )}
         </Card>
 
-        <Card className="rounded-3xl p-0 shadow-none">
+        <Card className="p-0">
           <PanelHeader
             actionHref="/payments/gcash-review"
-            actionLabel="Open GCash Review"
-            subtitle="GCash proofs staff submitted or marked for follow-up."
-            title="GCash payments needing review"
+            actionLabel="GCash Review"
+            title="GCash for review"
+            count={gcashReviewItems.length || undefined}
           />
           {gcashReviewItems.length ? (
-            <div className="divide-y divide-ledger-line">
+            <div className="divide-y divide-n-border">
               {gcashReviewItems.map((proof) => {
                 const payment = relatedOne(proof.payments);
                 const member = relatedOne(payment?.members);
                 const uploader = relatedOne(proof.uploaded_by_profile);
 
                 return (
-                  <div className="px-5 py-4" key={proof.id}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="break-words font-black text-ledger-ink">
+                  <div className="flex items-center justify-between gap-3 px-5 py-3" key={proof.id}>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-n-ink">
                         {member?.full_name ?? proof.sender_name ?? "Walk-in GCash"}
                       </p>
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-900">
-                        {labelize(proof.proof_status)}
-                      </span>
+                      <p className="mt-0.5 text-xs text-n-dim">
+                        {formatAmount(payment?.amount)} · {uploader?.full_name ?? "Staff"}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm font-black text-ledger-ink">
-                      {formatAmount(payment?.amount)} · {labelize(payment?.purpose ?? "walk_in_entry")}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-ledger-moss">
-                      Ref {proof.gcash_reference_number ?? "not provided"} · uploaded by {uploader?.full_name ?? "Unknown staff"}
-                    </p>
-                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
-                      {dateTimeFormatter.format(new Date(proof.created_at))}
-                    </p>
+                    <StatusBadge tone="warn" className="shrink-0">{labelize(proof.proof_status)}</StatusBadge>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <EmptyState title="No GCash review items" body="Staff-checked, disputed, and follow-up GCash proofs will appear here." />
+            <EmptyState title="No GCash review items" body="Pending GCash payments will appear here." compact />
           )}
         </Card>
       </section>
@@ -543,11 +582,15 @@ export default async function OwnerDashboardPage() {
 }
 
 function MetricCard({
+  detail,
+  detailTone,
   icon: Icon,
   label,
   tone = "default",
   value,
 }: {
+  detail?: string;
+  detailTone?: "danger";
   icon: typeof Users;
   label: string;
   tone?: "danger" | "default" | "warn";
@@ -555,20 +598,25 @@ function MetricCard({
 }) {
   const toneClass =
     tone === "danger"
-      ? "bg-red-100 text-red-800"
+      ? "bg-red-50 text-red-800"
       : tone === "warn"
-        ? "bg-amber-100 text-amber-900"
-        : "bg-ledger-lime text-ledger-ink";
+        ? "bg-amber-50 text-amber-800"
+        : "bg-n-hover text-n-muted";
 
   return (
-    <Card className="rounded-2xl p-5 shadow-none">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm font-black uppercase tracking-[0.16em] text-ledger-moss">{label}</p>
-        <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${toneClass}`}>
-          <Icon aria-hidden="true" className="size-5" />
+    <Card className="p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-n-muted">{label}</p>
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
+          <Icon aria-hidden="true" className="size-4" />
         </span>
       </div>
-      <p className="mt-4 break-words font-[var(--font-heading)] text-3xl font-black text-ledger-ink sm:text-4xl">{value}</p>
+      <p className="mt-3 text-xl font-bold text-n-ink">{value}</p>
+      {detail ? (
+        <p className={`mt-1 text-xs font-medium ${detailTone === "danger" ? "text-red-600" : "text-n-dim"}`}>
+          {detail}
+        </p>
+      ) : null}
     </Card>
   );
 }
@@ -576,44 +624,32 @@ function MetricCard({
 function PanelHeader({
   actionHref,
   actionLabel,
-  subtitle,
+  count,
   title,
+  variant,
 }: {
   actionHref: string;
   actionLabel: string;
-  subtitle: string;
+  count?: number;
   title: string;
+  variant?: "danger";
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-ledger-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h3 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">{title}</h3>
-        <p className="mt-1 text-sm font-bold text-ledger-moss">{subtitle}</p>
+    <div className="flex items-center justify-between border-b border-n-border px-5 py-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-bold text-n-ink">{title}</h3>
+        {count != null ? (
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${variant === "danger" ? "bg-red-100 text-red-700" : "bg-n-hover text-n-muted"}`}>
+            {count}
+          </span>
+        ) : null}
       </div>
       <Link
-        className="inline-flex min-h-10 items-center justify-center rounded-2xl bg-ledger-ink px-4 text-sm font-black text-ledger-paper transition hover:bg-ledger-moss"
+        className="text-xs font-bold text-n-dim transition hover:text-n-ink"
         href={actionHref}
       >
         {actionLabel}
       </Link>
-    </div>
-  );
-}
-
-function EmptyState({
-  body,
-  compact = false,
-  title,
-}: {
-  body: string;
-  compact?: boolean;
-  title: string;
-}) {
-  return (
-    <div className={compact ? "px-5 py-8 text-center" : "px-5 py-14 text-center"}>
-      <AlertTriangle aria-hidden="true" className="mx-auto size-9 text-ledger-moss" />
-      <p className="mt-3 font-black text-ledger-ink">{title}</p>
-      <p className="mt-1 text-sm font-bold leading-6 text-ledger-moss">{body}</p>
     </div>
   );
 }

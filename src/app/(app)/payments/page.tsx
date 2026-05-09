@@ -1,4 +1,4 @@
-import { ClipboardCheck, WalletCards } from "lucide-react";
+import { ClipboardCheck, HandCoins, WalletCards } from "lucide-react";
 import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
@@ -10,88 +10,129 @@ import { createClient } from "@/lib/supabase/server";
 export default async function PaymentsPage() {
   const profile = await requireModuleAccess("/payments");
   const canCorrectPayments = await hasConfiguredPermission(profile.role, "correct_payments");
+  const canRecordPayments = await hasConfiguredPermission(profile.role, "record_payments");
   const supabase = await createClient();
-  const [{ count: reviewCount, error: reviewError }, { count: disputedCount, error: disputedError }] =
+  const [
+    { count: reviewCount, error: reviewError },
+    { count: rejectedCount, error: rejectedError },
+    { data: balancesData, error: balancesError },
+  ] =
     await Promise.all([
       supabase
         .from("gcash_proofs")
         .select("id", { count: "exact", head: true })
-        .in("proof_status", ["staff_checked", "disputed", "needs_follow_up"]),
+        .in("proof_status", ["for_review", "rejected", "follow_up"]),
       supabase
         .from("gcash_proofs")
         .select("id", { count: "exact", head: true })
-        .eq("proof_status", "disputed"),
+        .eq("proof_status", "rejected"),
+      supabase
+        .from("walk_in_balances")
+        .select("amount, paid_amount, settled_at")
+        .is("settled_at", null),
     ]);
 
-  const error = reviewError ?? disputedError;
+  const error = reviewError ?? rejectedError ?? balancesError;
 
   if (error) {
     throw new Error(error.message);
   }
 
+  const openBalances = balancesData ?? [];
+  const utangOutstanding = openBalances.reduce((total, balance) => {
+    return total + Math.max(Number(balance.amount ?? 0) - Number(balance.paid_amount ?? 0), 0);
+  }, 0);
+  const pesoFormatter = new Intl.NumberFormat("en-PH", {
+    currency: "PHP",
+    style: "currency",
+  });
+
   return (
-    <div className="ledger-rise space-y-6">
-      <Card className="relative overflow-hidden rounded-3xl">
+    <div className="page-enter space-y-6">
+      <Card className="relative overflow-hidden">
         <div className="relative">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+          <div className="flex size-14 items-center justify-center rounded-xl bg-n-ink text-white">
             <WalletCards aria-hidden="true" className="size-7" />
           </div>
-          <p className="mt-7 text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
-            Payments
+          <p className="mt-7 text-xs font-semibold text-n-muted">
+            Payments & Utang
           </p>
-          <h2 className="mt-3 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-6xl">
+          <h2 className="mt-3 text-xl font-bold leading-tight text-n-ink sm:text-2xl">
             Payment Review
           </h2>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-ledger-moss">
-            Cash remains shift-based. GCash payments require uploaded proof and management confirmation before they become owner-confirmed.
+          <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-n-dim">
+            Cash remains shift-based. GCash payments allow entry immediately, then stay in a management review queue.
           </p>
         </div>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+      <div className="grid gap-4 lg:grid-cols-4">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">
+            Open Utang
+          </p>
+          <p className="mt-3 text-2xl font-bold text-n-ink">
+            {openBalances.length.toLocaleString("en-PH")}
+          </p>
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
+            {pesoFormatter.format(utangOutstanding)} unpaid across active balances.
+          </p>
+        </Card>
+
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">
             GCash Review Items
           </p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+          <p className="mt-3 text-2xl font-bold text-n-ink">
             {(reviewCount ?? 0).toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
-            Includes staff-checked, disputed, and follow-up proofs.
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
+            Includes for-review, rejected, and follow-up items.
           </p>
         </Card>
 
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
-            Disputed
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">
+            Rejected
           </p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
-            {(disputedCount ?? 0).toLocaleString("en-PH")}
+          <p className="mt-3 text-2xl font-bold text-n-ink">
+            {(rejectedCount ?? 0).toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
-            Disputed GCash payments stay in the review queue.
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
+            Rejected GCash payments stay visible for follow-up.
           </p>
         </Card>
 
-        <Card className="flex flex-col justify-between rounded-3xl shadow-none">
+        <Card className="flex flex-col justify-between lg:col-span-1">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+            <p className="text-xs font-semibold text-n-muted">
               Access
             </p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+            <p className="mt-3 text-xl font-bold text-n-ink">
               {roleLabels[profile.role]}
             </p>
           </div>
-          {canCorrectPayments ? (
-            <Link
-              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-ledger-ink px-5 text-sm font-black text-ledger-paper transition hover:bg-ledger-moss"
-              href="/payments/gcash-review"
-            >
-              <ClipboardCheck aria-hidden="true" className="size-4" />
-              Open GCash Review
-            </Link>
+          {canRecordPayments || canCorrectPayments ? (
+            <div className="mt-6 grid gap-2">
+              <Link
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-n-ink px-5 text-sm font-bold text-white transition hover:bg-n-dark active:scale-[0.98]"
+                href="/balances"
+              >
+                <HandCoins aria-hidden="true" className="size-4" />
+                Open Utang
+              </Link>
+              {canCorrectPayments ? (
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-n-border bg-white px-5 text-sm font-bold text-n-ink transition hover:bg-n-hover active:scale-[0.98]"
+                  href="/payments/gcash-review"
+                >
+                  <ClipboardCheck aria-hidden="true" className="size-4" />
+                  GCash Review
+                </Link>
+              ) : null}
+            </div>
           ) : (
-            <p className="mt-6 text-sm font-bold leading-6 text-ledger-moss">
+            <p className="mt-6 text-sm font-medium leading-6 text-n-dim">
               Management accounts review GCash proofs.
             </p>
           )}

@@ -7,7 +7,6 @@ import {
   isAppRole,
   type AppProfile,
 } from "@/lib/auth/permissions";
-import { getStaffPinSession } from "@/lib/auth/staff-pin";
 import type { ModuleHref } from "@/lib/modules";
 
 export async function getCurrentProfile(): Promise<AppProfile | null> {
@@ -31,11 +30,11 @@ export async function getCurrentProfile(): Promise<AppProfile | null> {
     return null;
   }
 
-  return { ...(data as AppProfile), accessMode: "email" };
+  return data as AppProfile;
 }
 
 export async function requireCurrentProfile() {
-  const profile = (await getCurrentProfile()) ?? (await getStaffPinSession())?.profile;
+  const profile = await getCurrentProfile();
 
   if (!profile) {
     redirect("/login");
@@ -46,10 +45,6 @@ export async function requireCurrentProfile() {
 
 export async function requireModuleAccess(href: ModuleHref) {
   const profile = await requireCurrentProfile();
-
-  if (profile.accessMode === "staff_pin" && href !== "/front-desk") {
-    redirect(`/unauthorized?next=${encodeURIComponent(href)}`);
-  }
 
   if (!canAccessModule(profile.role, href)) {
     redirect(`/unauthorized?next=${encodeURIComponent(href)}`);

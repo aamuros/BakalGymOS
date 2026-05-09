@@ -12,7 +12,7 @@ export default async function MainAppLayout({
 }>) {
   const profile = await requireCurrentProfile();
   await refreshOperationalNotifications(profile);
-  const notificationCount = await getUnreadNotificationCount(profile);
+  const notificationCount = await getUnreadNotificationCount();
 
   return (
     <AppShell notificationCount={notificationCount} profile={profile}>

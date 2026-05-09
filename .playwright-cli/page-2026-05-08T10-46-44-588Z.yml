@@ -1,0 +1,222 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - link "GymLedger Ops Board" [ref=e5] [cursor=pointer]:
+      - /url: /entry-reconciliation
+      - img [ref=e7]
+      - generic [ref=e13]:
+        - generic [ref=e14]: GymLedger
+        - generic [ref=e15]: Ops Board
+    - navigation [ref=e16]:
+      - link "Front Desk" [ref=e17] [cursor=pointer]:
+        - /url: /front-desk
+        - img [ref=e18]
+        - text: Front Desk
+      - link "Members" [ref=e22] [cursor=pointer]:
+        - /url: /members
+        - img [ref=e23]
+        - text: Members
+      - link "Payments & Utang" [ref=e28] [cursor=pointer]:
+        - /url: /payments
+        - img [ref=e29]
+        - text: Payments & Utang
+      - link "Shifts" [ref=e32] [cursor=pointer]:
+        - /url: /shifts
+        - img [ref=e33]
+        - text: Shifts
+      - link "Owner Review" [ref=e37] [cursor=pointer]:
+        - /url: /entry-reconciliation
+        - img [ref=e38]
+        - text: Owner Review
+      - link "Settings" [ref=e41] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e42]
+        - text: Settings
+    - generic [ref=e45]:
+      - paragraph [ref=e46]: Signed in
+      - paragraph [ref=e47]: GymLedger Owner
+      - paragraph [ref=e48]: Owner
+  - generic [ref=e49]:
+    - banner [ref=e50]:
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - paragraph [ref=e53]: Owner
+          - heading "Owner Review" [level=1] [ref=e54]
+        - generic [ref=e55]:
+          - link "0 unread notifications" [ref=e56] [cursor=pointer]:
+            - /url: /notifications
+            - img [ref=e57]
+          - button "Logout" [ref=e61] [cursor=pointer]:
+            - img [ref=e62]
+            - text: Logout
+    - main [ref=e65]:
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e70]:
+            - img [ref=e72]
+            - paragraph [ref=e75]: Owner Review
+            - heading "Owner Review" [level=2] [ref=e76]
+            - paragraph [ref=e77]: Inspect every gym entry, who allowed it, the shift it belongs to, and the payment, membership, or exception reason that permitted access.
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - paragraph [ref=e80]: Visible Entries
+              - paragraph [ref=e81]: "4"
+            - paragraph [ref=e82]: Owner access. No filters active.
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - img [ref=e85]
+            - paragraph [ref=e88]: Membership / Paid
+            - paragraph [ref=e89]: "2"
+          - generic [ref=e90]:
+            - img [ref=e91]
+            - paragraph [ref=e94]: Utang / Pay later
+            - paragraph [ref=e95]: "1"
+          - generic [ref=e96]:
+            - img [ref=e97]
+            - paragraph [ref=e99]: Needs Review
+            - paragraph [ref=e100]: "1"
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - text: Search
+              - generic [ref=e105]:
+                - img
+                - textbox "Search" [ref=e106]:
+                  - /placeholder: Name, member code, note, reference
+            - generic [ref=e107]:
+              - text: Date
+              - textbox "Date" [ref=e108]
+            - generic [ref=e109]:
+              - text: Status
+              - combobox "Status" [ref=e110]:
+                - option "All statuses" [selected]
+                - option "Active Member"
+                - option "Paid Walk-In"
+                - option "Renewed Member"
+                - option "Utang / Pay later"
+                - option "Exception"
+                - option "Needs Review"
+                - option "Blocked"
+            - generic [ref=e111]:
+              - text: Staff
+              - combobox "Staff" [ref=e112]:
+                - option "All staff" [selected]
+                - option "Front Desk One"
+                - option "Front Desk Two"
+                - option "Gym Manager"
+                - option "GymLedger Owner"
+            - generic [ref=e113]:
+              - text: Payment Method
+              - combobox "Payment Method" [ref=e114]:
+                - option "All methods" [selected]
+                - option "Cash"
+                - option "Gcash"
+                - option "Other"
+                - option "None"
+            - generic [ref=e115]:
+              - text: Entry Type
+              - combobox "Entry Type" [ref=e116]:
+                - option "All types" [selected]
+                - option "Active Member"
+                - option "Membership"
+                - option "Cash"
+                - option "Gcash"
+                - option "Pending"
+                - option "Exception"
+          - generic [ref=e117]:
+            - link "Clear" [ref=e118] [cursor=pointer]:
+              - /url: /entry-reconciliation
+            - button "Apply Filters" [ref=e119] [cursor=pointer]
+        - generic [ref=e120]:
+          - generic [ref=e121]:
+            - generic [ref=e122]:
+              - generic [ref=e123]:
+                - heading "Entries" [level=3] [ref=e124]
+                - paragraph [ref=e125]: Showing RLS-visible entries sorted by latest entry time.
+              - img [ref=e126]
+            - generic [ref=e129]:
+              - link "Guest With Owner Approval Guest / walk-in · Exception Entry Time May 8, 2026, 6:06 PM Staff / Shift Front Desk One Shift 40000000 Payment No payment Membership / exception Needs Review Needs Review" [ref=e130] [cursor=pointer]:
+                - /url: /entry-reconciliation?entry=80000000-0000-0000-0000-000000000004
+                - generic [ref=e131]:
+                  - generic:
+                    - generic:
+                      - img [ref=e132]
+                      - paragraph: Guest With Owner Approval
+                    - paragraph: Guest / walk-in · Exception
+                  - generic [ref=e136]:
+                    - paragraph [ref=e137]: Entry Time
+                    - paragraph [ref=e138]: May 8, 2026, 6:06 PM
+                  - generic [ref=e139]:
+                    - paragraph [ref=e140]: Staff / Shift
+                    - paragraph [ref=e141]: Front Desk One
+                    - paragraph [ref=e142]: Shift 40000000
+                  - generic [ref=e143]:
+                    - paragraph [ref=e144]: Payment
+                    - paragraph [ref=e145]: No payment
+                    - paragraph [ref=e146]: Membership / exception
+                  - generic [ref=e147]:
+                    - generic [ref=e148]: Needs Review
+                    - generic [ref=e149]: Needs Review
+              - link "Expired Member MEM-0002 · Pending Entry Time May 8, 2026, 5:36 PM Staff / Shift Front Desk One Shift 40000000 Payment Pending · ₱150.00 Cash Pending Payment" [ref=e150] [cursor=pointer]:
+                - /url: /entry-reconciliation?entry=80000000-0000-0000-0000-000000000003
+                - generic [ref=e151]:
+                  - generic [ref=e152]:
+                    - generic [ref=e153]:
+                      - img [ref=e154]
+                      - paragraph [ref=e158]: Expired Member
+                    - paragraph [ref=e159]: MEM-0002 · Pending
+                  - generic [ref=e160]:
+                    - paragraph [ref=e161]: Entry Time
+                    - paragraph [ref=e162]: May 8, 2026, 5:36 PM
+                  - generic [ref=e163]:
+                    - paragraph [ref=e164]: Staff / Shift
+                    - paragraph [ref=e165]: Front Desk One
+                    - paragraph [ref=e166]: Shift 40000000
+                  - generic [ref=e167]:
+                    - paragraph [ref=e168]: Payment
+                    - paragraph [ref=e169]: Pending · ₱150.00
+                    - paragraph [ref=e170]: Cash
+                  - generic [ref=e172]: Pending Payment
+              - link "Cash Walk-In Member MEM-0003 · Cash Entry Time May 8, 2026, 4:36 PM Staff / Shift Front Desk One Shift 40000000 Payment Completed · ₱100.00 Cash Paid Walk In" [ref=e173] [cursor=pointer]:
+                - /url: /entry-reconciliation?entry=80000000-0000-0000-0000-000000000002
+                - generic [ref=e174]:
+                  - generic [ref=e175]:
+                    - generic [ref=e176]:
+                      - img [ref=e177]
+                      - paragraph [ref=e181]: Cash Walk-In Member
+                    - paragraph [ref=e182]: MEM-0003 · Cash
+                  - generic [ref=e183]:
+                    - paragraph [ref=e184]: Entry Time
+                    - paragraph [ref=e185]: May 8, 2026, 4:36 PM
+                  - generic [ref=e186]:
+                    - paragraph [ref=e187]: Staff / Shift
+                    - paragraph [ref=e188]: Front Desk One
+                    - paragraph [ref=e189]: Shift 40000000
+                  - generic [ref=e190]:
+                    - paragraph [ref=e191]: Payment
+                    - paragraph [ref=e192]: Completed · ₱100.00
+                    - paragraph [ref=e193]: Cash
+                  - generic [ref=e195]: Paid Walk In
+              - link "Active Member MEM-0001 · Membership Entry Time May 8, 2026, 4:06 PM Staff / Shift Front Desk One Shift 40000000 Payment No payment Membership / exception Active Member" [ref=e196] [cursor=pointer]:
+                - /url: /entry-reconciliation?entry=80000000-0000-0000-0000-000000000001
+                - generic [ref=e197]:
+                  - generic [ref=e198]:
+                    - generic [ref=e199]:
+                      - img [ref=e200]
+                      - paragraph [ref=e204]: Active Member
+                    - paragraph [ref=e205]: MEM-0001 · Membership
+                  - generic [ref=e206]:
+                    - paragraph [ref=e207]: Entry Time
+                    - paragraph [ref=e208]: May 8, 2026, 4:06 PM
+                  - generic [ref=e209]:
+                    - paragraph [ref=e210]: Staff / Shift
+                    - paragraph [ref=e211]: Front Desk One
+                    - paragraph [ref=e212]: Shift 40000000
+                  - generic [ref=e213]:
+                    - paragraph [ref=e214]: Payment
+                    - paragraph [ref=e215]: No payment
+                    - paragraph [ref=e216]: Membership / exception
+                  - generic [ref=e218]: Active Member
+          - generic [ref=e220]:
+            - img [ref=e221]
+            - heading "Open an entry" [level=3] [ref=e224]
+            - paragraph [ref=e225]: Select a row to see the membership, payment, utang balance, or exception reason that allowed access.

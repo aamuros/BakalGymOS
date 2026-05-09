@@ -18,8 +18,6 @@ export type AppProfile = {
   email: string | null;
   role: AppRole;
   status: "active" | "disabled";
-  accessMode?: "email" | "staff_pin";
-  staffProfileId?: string;
 };
 
 export const roleLabels: Record<AppRole, string> = {
@@ -33,46 +31,49 @@ export const roleLabels: Record<AppRole, string> = {
 const roleModuleAccess: Record<AppRole, ModuleHref[]> = {
   admin: [
     "/front-desk",
-    "/owner-dashboard",
     "/members",
     "/payments",
-    "/balances",
-    "/entry-reconciliation",
     "/shifts",
+    "/owner-review",
+    "/settings",
+    "/owner-dashboard",
+    "/balances",
     "/exceptions",
+    "/entry-reconciliation",
     "/notifications",
     "/reports",
     "/audit-logs",
-    "/settings",
   ],
   owner: [
-    "/owner-dashboard",
-    "/reports",
+    "/owner-review",
+    "/front-desk",
     "/members",
     "/payments",
-    "/balances",
-    "/entry-reconciliation",
     "/shifts",
-    "/exceptions",
-    "/notifications",
-    "/audit-logs",
     "/settings",
-    "/front-desk",
+    "/owner-dashboard",
+    "/balances",
+    "/exceptions",
+    "/entry-reconciliation",
+    "/notifications",
+    "/reports",
+    "/audit-logs",
   ],
   manager: [
     "/front-desk",
-    "/owner-dashboard",
     "/members",
     "/payments",
-    "/balances",
-    "/entry-reconciliation",
     "/shifts",
+    "/owner-review",
+    "/owner-dashboard",
+    "/balances",
     "/exceptions",
+    "/entry-reconciliation",
     "/notifications",
     "/reports",
   ],
-  front_desk: ["/front-desk", "/members", "/exceptions", "/notifications"],
-  accountant: ["/reports", "/payments", "/balances", "/notifications"],
+  front_desk: ["/front-desk", "/members", "/payments", "/shifts", "/balances", "/exceptions", "/notifications"],
+  accountant: ["/payments", "/balances", "/reports", "/notifications"],
 };
 
 export function isAppRole(role: string | null | undefined): role is AppRole {
@@ -83,8 +84,12 @@ export function canAccessModule(role: AppRole, href: ModuleHref) {
   return roleModuleAccess[role].includes(href);
 }
 
-export function getAllowedModules(role: AppRole) {
+export function getAccessibleModules(role: AppRole) {
   return modules.filter((module) => canAccessModule(role, module.href));
+}
+
+export function getVisibleModules(role: AppRole) {
+  return getAccessibleModules(role).filter((module) => module.visibleInSidebar);
 }
 
 export function getDefaultPathForRole(role: AppRole) {

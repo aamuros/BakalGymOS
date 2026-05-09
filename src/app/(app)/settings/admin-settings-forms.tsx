@@ -9,26 +9,32 @@ import {
   saveExceptionTypes,
   saveGymProfile,
   saveMembershipRate,
+  saveOperationalSettings,
   savePaymentSettings,
   saveRolePermissions,
   saveStaffAccess,
+  saveWalkInRate,
 } from "@/app/(app)/settings/actions";
 import {
   editablePermissionRoles,
   exceptionTypeSettingsSchema,
   gymProfileSchema,
   membershipRateSchema,
+  operationalSettingsSchema,
   paymentSettingsSchema,
   permissionKeys,
   permissionLabels,
   rolePermissionSchema,
   staffAccessSchema,
+  walkInRateSchema,
   type ExceptionTypeSettingsValues,
   type GymProfileValues,
   type MembershipRateValues,
+  type OperationalSettingsValues,
   type PaymentSettingsValues,
   type RolePermissionValues,
   type StaffAccessValues,
+  type WalkInRateValues,
 } from "@/app/(app)/settings/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +53,7 @@ function FieldError({ message }: { message?: string }) {
 function StatusMessage({ status }: { status: ActionStatus }) {
   if (status.error) {
     return (
-      <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+      <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
         {status.error}
       </p>
     );
@@ -55,7 +61,7 @@ function StatusMessage({ status }: { status: ActionStatus }) {
 
   if (status.message) {
     return (
-      <p className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
+      <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
         {status.message}
       </p>
     );
@@ -74,10 +80,10 @@ function CheckboxField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex min-h-11 items-center gap-3 rounded-2xl border border-ledger-line bg-white/70 px-4 py-3 text-sm font-black text-ledger-ink">
+    <label className="flex min-h-11 items-center gap-3 rounded-lg border border-n-border bg-white/70 px-4 py-3 text-sm font-bold text-n-ink">
       <input
         checked={checked}
-        className="size-4 accent-ledger-ink"
+        className="size-4 accent-n-ink"
         onChange={(event) => onChange(event.target.checked)}
         type="checkbox"
       />
@@ -220,10 +226,10 @@ function RolePermissionCard({ defaultValues }: { defaultValues: RolePermissionVa
   }
 
   return (
-    <form className="space-y-4 rounded-3xl border border-ledger-line bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4 rounded-lg border border-n-border bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">Role</p>
-        <h4 className="mt-1 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+        <p className="text-xs font-semibold text-n-muted">Role</p>
+        <h4 className="mt-1 text-lg font-bold text-n-ink">
           {roleLabels[defaultValues.role]}
         </h4>
       </div>
@@ -270,7 +276,7 @@ function MembershipRateForm({ defaultValues }: { defaultValues: MembershipRateVa
   }
 
   return (
-    <form className="space-y-4 rounded-3xl border border-ledger-line bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4 rounded-lg border border-n-border bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
       <div className="space-y-2">
         <Label htmlFor={`plan-name-${defaultValues.id}`}>Plan name</Label>
         <Input id={`plan-name-${defaultValues.id}`} {...form.register("name")} />
@@ -307,7 +313,7 @@ function MembershipRateForm({ defaultValues }: { defaultValues: MembershipRateVa
       <div className="space-y-2">
         <Label htmlFor={`status-${defaultValues.id}`}>Status</Label>
         <select
-          className="min-h-11 w-full rounded-2xl border border-ledger-line bg-white px-4 text-sm font-bold text-ledger-ink"
+          className="min-h-11 w-full rounded-lg border border-n-border bg-white px-4 text-sm font-bold text-n-ink"
           id={`status-${defaultValues.id}`}
           {...form.register("status")}
         >
@@ -353,7 +359,7 @@ function StaffAccessForm({ defaultValues }: { defaultValues: StaffAccessValues }
   }
 
   return (
-    <form className="space-y-4 rounded-3xl border border-ledger-line bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4 rounded-lg border border-n-border bg-white/60 p-5" onSubmit={form.handleSubmit(onSubmit)}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={`staff-name-${defaultValues.profile_id}`}>Name</Label>
@@ -368,7 +374,7 @@ function StaffAccessForm({ defaultValues }: { defaultValues: StaffAccessValues }
         <div className="space-y-2">
           <Label htmlFor={`staff-role-${defaultValues.profile_id}`}>Role</Label>
           <select
-            className="min-h-11 w-full rounded-2xl border border-ledger-line bg-white px-4 text-sm font-bold text-ledger-ink"
+            className="min-h-11 w-full rounded-lg border border-n-border bg-white px-4 text-sm font-bold text-n-ink"
             id={`staff-role-${defaultValues.profile_id}`}
             {...form.register("role")}
           >
@@ -380,7 +386,7 @@ function StaffAccessForm({ defaultValues }: { defaultValues: StaffAccessValues }
         <div className="space-y-2">
           <Label htmlFor={`profile-status-${defaultValues.profile_id}`}>Login</Label>
           <select
-            className="min-h-11 w-full rounded-2xl border border-ledger-line bg-white px-4 text-sm font-bold text-ledger-ink"
+            className="min-h-11 w-full rounded-lg border border-n-border bg-white px-4 text-sm font-bold text-n-ink"
             id={`profile-status-${defaultValues.profile_id}`}
             {...form.register("profile_status")}
           >
@@ -391,7 +397,7 @@ function StaffAccessForm({ defaultValues }: { defaultValues: StaffAccessValues }
         <div className="space-y-2">
           <Label htmlFor={`staff-status-${defaultValues.profile_id}`}>Staff</Label>
           <select
-            className="min-h-11 w-full rounded-2xl border border-ledger-line bg-white px-4 text-sm font-bold text-ledger-ink"
+            className="min-h-11 w-full rounded-lg border border-n-border bg-white px-4 text-sm font-bold text-n-ink"
             id={`staff-status-${defaultValues.profile_id}`}
             {...form.register("staff_status")}
           >
@@ -420,6 +426,108 @@ function StaffAccessForm({ defaultValues }: { defaultValues: StaffAccessValues }
   );
 }
 
+export function WalkInRateForm({ defaultValues }: { defaultValues: WalkInRateValues }) {
+  const [status, setStatus] = useState<ActionStatus>({});
+  const [isPending, startTransition] = useTransition();
+  const form = useForm<WalkInRateValues>({
+    defaultValues,
+    resolver: zodResolver(walkInRateSchema),
+  });
+
+  function onSubmit(input: WalkInRateValues) {
+    startTransition(async () => setStatus(await saveWalkInRate(input)));
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="walk-in-amount">Default walk-in rate</Label>
+          <Input
+            id="walk-in-amount"
+            min="0"
+            step="0.01"
+            type="number"
+            {...form.register("amount", { valueAsNumber: true })}
+          />
+          <FieldError message={form.formState.errors.amount?.message} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="walk-in-currency">Currency</Label>
+          <Input id="walk-in-currency" maxLength={3} {...form.register("currency")} />
+        </div>
+      </div>
+      <StatusMessage status={status} />
+      <Button className="gap-2" disabled={isPending} type="submit">
+        <Save aria-hidden="true" className="size-4" />
+        {isPending ? "Saving" : "Save rate"}
+      </Button>
+    </form>
+  );
+}
+
+export function OperationalSettingsForm({ defaultValues }: { defaultValues: OperationalSettingsValues }) {
+  const [status, setStatus] = useState<ActionStatus>({});
+  const [isPending, startTransition] = useTransition();
+  const form = useForm<OperationalSettingsValues>({
+    defaultValues,
+    resolver: zodResolver(operationalSettingsSchema),
+  });
+  const values = useWatch({ control: form.control });
+
+  function onSubmit(input: OperationalSettingsValues) {
+    startTransition(async () => setStatus(await saveOperationalSettings(input)));
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+      <div className="grid gap-3 md:grid-cols-2">
+        <CheckboxField
+          checked={Boolean(values.allow_utang)}
+          label="Allow utang / Pay later"
+          onChange={(checked) => form.setValue("allow_utang", checked)}
+        />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="max-utang-warning">Max utang warning amount</Label>
+          <Input
+            id="max-utang-warning"
+            min="0"
+            step="0.01"
+            type="number"
+            {...form.register("max_utang_warning_amount", { valueAsNumber: true })}
+          />
+          <p className="text-xs font-medium text-n-dim">
+            Staff see a stronger warning when a customer&apos;s outstanding utang reaches this amount.
+          </p>
+          <FieldError message={form.formState.errors.max_utang_warning_amount?.message} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="grace-period">Grace period after expiry (days)</Label>
+          <Input
+            id="grace-period"
+            max="365"
+            min="0"
+            step="1"
+            type="number"
+            {...form.register("grace_period_days", { valueAsNumber: true })}
+          />
+          <p className="text-xs font-medium text-n-dim">
+            Members can still check in this many days after their membership expires. 0 means no grace period.
+          </p>
+          <FieldError message={form.formState.errors.grace_period_days?.message} />
+        </div>
+      </div>
+      <StatusMessage status={status} />
+      <Button className="gap-2" disabled={isPending} type="submit">
+        <Save aria-hidden="true" className="size-4" />
+        {isPending ? "Saving" : "Save settings"}
+      </Button>
+    </form>
+  );
+}
+
 export function ExceptionTypesForm({ defaultValues }: { defaultValues: ExceptionTypeSettingsValues }) {
   const [status, setStatus] = useState<ActionStatus>({});
   const [isPending, startTransition] = useTransition();
@@ -437,7 +545,7 @@ export function ExceptionTypesForm({ defaultValues }: { defaultValues: Exception
   return (
     <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
       {fields.map((field, index) => (
-        <div className="grid gap-3 rounded-3xl border border-ledger-line bg-white/60 p-4 lg:grid-cols-[1fr_1fr_auto]" key={field.id}>
+        <div className="grid gap-3 rounded-lg border border-n-border bg-white/60 p-4 lg:grid-cols-[1fr_1fr_auto]" key={field.id}>
           <div className="space-y-2">
             <Label htmlFor={`exception-label-${field.id}`}>Label</Label>
             <Input id={`exception-label-${field.id}`} {...form.register(`types.${index}.label`)} />
@@ -459,7 +567,7 @@ export function ExceptionTypesForm({ defaultValues }: { defaultValues: Exception
             />
             <Button
               aria-label="Remove exception type"
-              className="size-11 shrink-0 rounded-2xl p-0"
+              className="size-11 shrink-0 rounded-lg p-0"
               onClick={() => remove(index)}
               type="button"
               variant="secondary"

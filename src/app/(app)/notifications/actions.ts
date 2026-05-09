@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireModuleAccess } from "@/lib/auth/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 type ActionResult = {
   error?: string;
@@ -13,7 +13,7 @@ export async function markNotificationRead(notificationId: string): Promise<Acti
   const profile = await requireModuleAccess("/notifications");
   const now = new Date().toISOString();
 
-  const supabase = profile.accessMode === "staff_pin" ? createServiceClient() : await createClient();
+  const supabase = await createClient();
   const query = supabase
     .from("notifications")
     .update({
@@ -39,7 +39,7 @@ export async function markAllNotificationsRead(): Promise<ActionResult> {
   const profile = await requireModuleAccess("/notifications");
   const now = new Date().toISOString();
 
-  const supabase = profile.accessMode === "staff_pin" ? createServiceClient() : await createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("notifications")
     .update({

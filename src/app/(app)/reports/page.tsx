@@ -330,7 +330,7 @@ function buildReportDefinitions({
   range: ReturnType<typeof getDateRange>;
 }) {
   const revenuePayments = payments.filter((payment) =>
-    ["completed", "owner_confirmed"].includes(payment.status),
+    ["completed", "verified"].includes(payment.status),
   );
   const walkInPayments = revenuePayments.filter((payment) => payment.purpose === "walk_in_entry");
   const membershipPayments = revenuePayments.filter((payment) =>
@@ -341,7 +341,7 @@ function buildReportDefinitions({
   const pendingGcash = payments.filter(
     (payment) =>
       payment.payment_type === "gcash" &&
-      ["pending_proof", "staff_checked", "needs_follow_up", "disputed"].includes(payment.status),
+      ["awaiting_proof", "for_review", "follow_up", "rejected"].includes(payment.status),
   );
   const walkInEntries = entries.filter((entry) => ["cash", "gcash", "pending"].includes(entry.settlement_type));
   const openBalances = balances.filter((balance) => getBalanceStatus(balance) !== "paid");
@@ -578,18 +578,18 @@ function ReportSection({ canExport, report }: { canExport: boolean; report: Repo
   const Icon = report.icon;
 
   return (
-    <Card className="overflow-hidden rounded-3xl shadow-none" id={report.id}>
-      <div className="flex flex-col gap-4 border-b border-ledger-line pb-5 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="overflow-hidden" id={report.id}>
+      <div className="flex flex-col gap-4 border-b border-n-border pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <div className="flex items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-n-ink text-white">
               <Icon aria-hidden="true" className="size-5" />
             </span>
             <div>
-              <h3 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+              <h3 className="text-lg font-bold text-n-ink">
                 {report.title}
               </h3>
-              <p className="mt-1 text-sm font-bold leading-6 text-ledger-moss">{report.description}</p>
+              <p className="mt-1 text-sm font-medium leading-6 text-n-dim">{report.description}</p>
             </div>
           </div>
         </div>
@@ -600,23 +600,23 @@ function ReportSection({ canExport, report }: { canExport: boolean; report: Repo
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         {report.cards.map((card) => (
-          <div className="rounded-2xl border border-ledger-line bg-white/70 p-4" key={card.label}>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">{card.label}</p>
-            <p className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+          <div className="rounded-lg border border-n-border bg-white/70 p-4" key={card.label}>
+            <p className="text-xs font-semibold text-n-muted">{card.label}</p>
+            <p className="mt-2 text-xl font-bold sm:text-2xl text-n-ink">
               {card.value}
             </p>
-            <p className="mt-2 text-xs font-bold leading-5 text-ledger-moss">{card.detail}</p>
+            <p className="mt-2 text-xs font-medium leading-5 text-n-dim">{card.detail}</p>
           </div>
         ))}
       </div>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left text-sm">
+        <table className="w-full min-w-[600px] border-separate border-spacing-0 text-left text-sm">
           <thead>
             <tr>
               {report.tableHeaders.map((header) => (
                 <th
-                  className="border-b border-ledger-line bg-ledger-paper px-3 py-3 text-xs font-black uppercase tracking-[0.16em] text-ledger-moss"
+                  className="border-b border-n-border bg-white px-3 py-3 text-xs font-semibold text-n-muted"
                   key={header}
                 >
                   {header}
@@ -629,7 +629,7 @@ function ReportSection({ canExport, report }: { canExport: boolean; report: Repo
               report.rows.slice(0, 12).map((row, index) => (
                 <tr className="align-top" key={`${report.id}-${index}`}>
                   {report.tableHeaders.map((header) => (
-                    <td className="border-b border-ledger-line/70 px-3 py-3 font-bold text-ledger-ink" key={header}>
+                    <td className="border-b border-n-border/70 px-3 py-3 font-bold text-n-ink" key={header}>
                       {row[header] ?? ""}
                     </td>
                   ))}
@@ -637,7 +637,7 @@ function ReportSection({ canExport, report }: { canExport: boolean; report: Repo
               ))
             ) : (
               <tr>
-                <td className="px-3 py-8 text-center font-bold text-ledger-moss" colSpan={report.tableHeaders.length}>
+                <td className="px-3 py-8 text-center font-medium text-n-dim" colSpan={report.tableHeaders.length}>
                   No report rows for this date range.
                 </td>
               </tr>
@@ -722,27 +722,26 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     .at(0)?.cards[0]?.value ?? "Limited";
 
   return (
-    <div className="ledger-rise space-y-6">
-      <Card className="relative overflow-hidden rounded-3xl">
-        <div className="absolute -right-20 -top-24 size-72 rounded-full bg-ledger-lime/40 blur-3xl" />
+    <div className="page-enter space-y-6">
+      <Card className="relative overflow-hidden">
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-4xl">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+            <div className="flex size-14 items-center justify-center rounded-lg bg-n-ink text-white">
               <Banknote aria-hidden="true" className="size-7" />
             </div>
-            <p className="mt-7 text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+            <p className="mt-7 text-xs font-semibold text-n-muted">
               Reports / {roleLabels[profile.role]} access
             </p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-6xl">
+            <h2 className="mt-3 text-2xl font-bold leading-tight text-n-ink sm:text-3xl">
               Review revenue and operations over time.
             </h2>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-ledger-moss">
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-n-dim">
               CSV exports are generated from the same role-filtered data visible on this page when export access is enabled.
               Managers see operational reports only; owners, admins, and accountants see financial reports.
             </p>
           </div>
 
-          <form className="rounded-3xl border border-ledger-line bg-white/75 p-4 shadow-none" id="report-filters">
+          <form className="rounded-lg border border-n-border bg-white/75 p-4" id="report-filters">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="start">Start date</Label>
@@ -758,7 +757,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 Apply
               </Button>
               <a
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-ledger-line bg-ledger-paper px-5 py-2.5 text-sm font-bold text-ledger-ink transition hover:bg-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-n-border bg-white px-5 py-2.5 text-sm font-bold text-n-ink transition hover:bg-white"
                 href="/reports"
               >
                 Reset
@@ -769,35 +768,35 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Date range</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Date range</p>
+          <p className="mt-3 text-xl font-bold sm:text-2xl text-n-ink">
             {range.start} to {range.end}
           </p>
-          <p className="mt-3 text-sm font-bold leading-6 text-ledger-moss">Manila calendar dates.</p>
+          <p className="mt-3 text-sm font-medium leading-6 text-n-dim">Manila calendar dates.</p>
         </Card>
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Visible reports</p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Visible reports</p>
+          <p className="mt-3 text-5xl font-bold text-n-ink">
             {reports.length.toLocaleString("en-PH")}
           </p>
-          <p className="mt-3 text-sm font-bold leading-6 text-ledger-moss">Role-gated report sections.</p>
+          <p className="mt-3 text-sm font-medium leading-6 text-n-dim">Role-gated report sections.</p>
         </Card>
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Revenue access</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">{visibleRevenue}</p>
-          <p className="mt-3 text-sm font-bold leading-6 text-ledger-moss">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Revenue access</p>
+          <p className="mt-3 text-xl font-bold sm:text-2xl text-n-ink">{visibleRevenue}</p>
+          <p className="mt-3 text-sm font-medium leading-6 text-n-dim">
             Confirmed payments only, excluding voids and refunds.
           </p>
         </Card>
       </div>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <div className="flex flex-wrap gap-2">
           {reports.map((report) => (
             <a
               className={cn(
-                "inline-flex min-h-10 items-center rounded-full border border-ledger-line bg-white/75 px-4 text-sm font-black text-ledger-ink transition hover:border-ledger-moss",
+                "inline-flex min-h-10 items-center rounded-lg border border-n-border bg-white/75 px-4 text-sm font-bold text-n-ink transition hover:border-n-dark",
               )}
               href={`#${report.id}`}
               key={report.id}

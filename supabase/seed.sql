@@ -1,3 +1,4 @@
+set session_replication_role = replica;
 begin;
 
 -- Local/demo Auth users.
@@ -16,14 +17,28 @@ insert into auth.users (
   raw_user_meta_data
 )
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk1@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk2@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'accountant@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'active.member@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'expired.member@gymledger.local', '$2y$10$M19XeRjwxCJK3e73qSTiwuxbJJu52cRmSKhusoVX3iLP3sNqSuSGm', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
-on conflict (id) do nothing;
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk1@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'frontdesk2@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'accountant@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'active.member@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'expired.member@gymledger.local', crypt('Test1234!', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}')
+on conflict (id) do update
+set encrypted_password = excluded.encrypted_password,
+    email_confirmed_at = excluded.email_confirmed_at,
+    updated_at = excluded.updated_at;
+
+update auth.users
+set confirmation_token = coalesce(confirmation_token, ''),
+    recovery_token = coalesce(recovery_token, ''),
+    email_change_token_new = coalesce(email_change_token_new, ''),
+    email_change = coalesce(email_change, ''),
+    phone_change = coalesce(phone_change, ''),
+    phone_change_token = coalesce(phone_change_token, ''),
+    email_change_token_current = coalesce(email_change_token_current, ''),
+    reauthentication_token = coalesce(reauthentication_token, '')
+where email like '%@gymledger.local';
 
 insert into auth.identities (
   id,
@@ -166,7 +181,7 @@ insert into public.payments (
   notes
 )
 values
-  ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'gcash', 'membership_purchase', 1200.00, 'staff_checked', now() - interval '3 hours', null, 'GCASH-GL-0001', 'Monthly membership purchase'),
+  ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'gcash', 'membership_purchase', 1200.00, 'for_review', now() - interval '3 hours', null, 'GCASH-GL-0001', 'Monthly membership purchase'),
   ('50000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'cash', 'walk_in_entry', 100.00, 'completed', now() - interval '2 hours', null, null, 'Cash walk-in'),
   ('50000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', 'cash', 'balance_payment', 150.00, 'pending', null, now() + interval '7 days', null, 'Utang for expired member walk-in')
 on conflict (id) do update
@@ -304,7 +319,7 @@ values (
   125000,
   'GCASH-GL-0001',
   'Active Member',
-  'staff_checked'
+  'for_review'
 )
 on conflict (id) do update
 set storage_path = excluded.storage_path,
@@ -359,3 +374,4 @@ set value = excluded.value,
     updated_by = excluded.updated_by;
 
 commit;
+set session_replication_role = default;

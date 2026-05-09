@@ -4,6 +4,7 @@ import { ArrowRightLeft, CalendarDays, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
 import { BalancePaymentPanel } from "./balance-payment-panel";
@@ -21,11 +22,11 @@ const statusLabels: Record<BalanceStatus, string> = {
   unpaid: "Unpaid",
 };
 
-const statusStyles: Record<BalanceStatus, string> = {
-  overdue: "bg-red-100 text-red-800",
-  paid: "bg-green-100 text-green-800",
-  partially_paid: "bg-amber-100 text-amber-800",
-  unpaid: "bg-slate-100 text-slate-700",
+const statusBadgeTone: Record<BalanceStatus, "danger" | "active" | "warn" | "neutral"> = {
+  overdue: "danger",
+  paid: "active",
+  partially_paid: "warn",
+  unpaid: "neutral",
 };
 
 function formatMoney(value: number) {
@@ -66,17 +67,17 @@ export function BalancesClient({ balances, totalOutstanding }: BalancesClientPro
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+            <p className="text-xs font-semibold text-n-muted">
               Outstanding Total
             </p>
-            <p className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+            <p className="mt-2 text-2xl font-bold text-n-ink">
               {formatMoney(totalOutstanding)}
             </p>
           </div>
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-ledger-lime text-ledger-ink">
+          <div className="flex size-11 items-center justify-center rounded-lg bg-n-hover text-n-muted">
             <WalletCards aria-hidden="true" className="size-5" />
           </div>
         </div>
@@ -89,10 +90,10 @@ export function BalancesClient({ balances, totalOutstanding }: BalancesClientPro
               return (
                 <button
                   className={cn(
-                    "w-full rounded-3xl border p-4 text-left transition",
+                    "w-full rounded-lg border p-4 text-left transition",
                     isSelected
-                      ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                      : "border-ledger-line bg-white/80 hover:border-ledger-moss",
+                      ? "border-n-ink bg-n-ink text-white"
+                      : "border-n-border bg-white/80 hover:border-n-muted/30",
                   )}
                   aria-pressed={isSelected}
                   key={balance.id}
@@ -102,50 +103,51 @@ export function BalancesClient({ balances, totalOutstanding }: BalancesClientPro
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-[var(--font-heading)] text-xl font-black">
+                        <span className="text-xl font-bold">
                           {balance.displayName}
                         </span>
                         {balance.memberCode ? (
                           <span
                             className={cn(
-                              "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-                              isSelected ? "bg-white/15 text-ledger-lime" : "bg-ledger-paper text-ledger-moss",
+                              "rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em]",
+                              isSelected ? "bg-white/15 text-white" : "bg-white text-n-muted",
                             )}
                           >
                             {balance.memberCode}
                           </span>
                         ) : null}
                       </div>
-                      <p className={cn("text-sm font-bold", isSelected ? "text-ledger-paper/70" : "text-ledger-moss")}>
+                      <p className={cn("text-sm font-medium", isSelected ? "text-white/70" : "text-n-dim")}>
                         {balance.notes ?? "No notes saved."}
                       </p>
-                      <p className={cn("text-xs font-black uppercase tracking-[0.18em]", isSelected ? "text-ledger-lime" : "text-ledger-moss")}>
-                        Last check-in: {formatDateTime(balance.lastCheckIn)}
+                      <p className={cn("text-xs font-semibold", isSelected ? "text-white" : "text-n-muted")}>
+                        Created: {formatDateTime(balance.createdAt)}
                       </p>
                     </div>
 
                     <div className="space-y-2 text-right">
-                      <p className="font-[var(--font-heading)] text-2xl font-black">
+                      <p className="text-2xl font-bold">
                         {formatMoney(balance.remainingAmount)}
                       </p>
-                      <p className={cn("text-xs font-black uppercase tracking-[0.18em]", isSelected ? "text-ledger-paper/70" : "text-ledger-moss")}>
+                      <p className={cn("text-xs font-semibold", isSelected ? "text-white/70" : "text-n-muted")}>
+                        Paid {formatMoney(balance.paidAmount)} of {formatMoney(balance.amount)}
+                      </p>
+                      <p className={cn("text-xs font-semibold", isSelected ? "text-white/70" : "text-n-muted")}>
                         {balance.daysUnpaid} day{balance.daysUnpaid === 1 ? "" : "s"} unpaid
                       </p>
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.16em]",
-                          isSelected ? "bg-white/12 text-ledger-paper" : statusStyles[balance.status],
-                        )}
+                      <StatusBadge
+                        className={cn(isSelected ? "bg-white/12 text-white border-transparent" : "")}
+                        tone={statusBadgeTone[balance.status]}
                       >
                         {statusLabels[balance.status]}
-                      </span>
+                      </StatusBadge>
                     </div>
                   </div>
                 </button>
               );
             })
           ) : (
-            <div className="rounded-3xl border border-dashed border-ledger-line bg-white/70 px-5 py-10 text-sm font-bold text-ledger-moss">
+            <div className="rounded-lg border border-dashed border-n-border bg-white/70 px-5 py-10 text-sm font-medium text-n-dim">
               No balances match the current filter.
             </div>
           )}
@@ -153,16 +155,16 @@ export function BalancesClient({ balances, totalOutstanding }: BalancesClientPro
       </Card>
 
       <div className="space-y-5">
-        <Card className="rounded-3xl shadow-none">
+        <Card>
           <div className="flex items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+            <span className="flex size-11 items-center justify-center rounded-lg bg-n-ink text-white">
               <ArrowRightLeft aria-hidden="true" className="size-5" />
             </span>
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+              <p className="text-xs font-semibold text-n-muted">
                 Selected Balance
               </p>
-              <p className="mt-1 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+              <p className="mt-1 text-lg font-bold text-n-ink">
                 {selectedBalance?.displayName ?? "No balance selected"}
               </p>
             </div>
@@ -171,64 +173,117 @@ export function BalancesClient({ balances, totalOutstanding }: BalancesClientPro
           {selectedBalance ? (
             <dl className="mt-5 grid gap-3 sm:grid-cols-2">
               <div>
-                <dt className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">
-                  Remaining
+                <dt className="text-xs font-semibold text-n-muted">
+                  Amount
                 </dt>
-                <dd className="mt-1 font-black text-ledger-ink">
+                <dd className="mt-1 font-bold text-n-ink">
+                  {formatMoney(selectedBalance.amount)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-n-muted">
+                  Amount paid
+                </dt>
+                <dd className="mt-1 font-bold text-n-ink">
+                  {formatMoney(selectedBalance.paidAmount)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-n-muted">
+                  Remaining balance
+                </dt>
+                <dd className="mt-1 font-bold text-n-ink">
                   {formatMoney(selectedBalance.remainingAmount)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">
-                  Last payment
+                <dt className="text-xs font-semibold text-n-muted">
+                  Date created
                 </dt>
-                <dd className="mt-1 font-black text-ledger-ink">
-                  {formatDateTime(selectedBalance.lastPaymentAt)}
+                <dd className="mt-1 font-bold text-n-ink">
+                  {formatDateTime(selectedBalance.createdAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">
+                <dt className="text-xs font-semibold text-n-muted">
                   Due date
                 </dt>
-                <dd className="mt-1 font-black text-ledger-ink">
+                <dd className="mt-1 font-bold text-n-ink">
                   {formatDateTime(selectedBalance.dueAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">
-                  Status
+                <dt className="text-xs font-semibold text-n-muted">
+                  Staff
                 </dt>
-                <dd className="mt-1 font-black text-ledger-ink">
-                  {statusLabels[selectedBalance.status]}
+                <dd className="mt-1 font-bold text-n-ink">
+                  {selectedBalance.recordedBy ?? "Unknown staff"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-n-muted">
+                  Shift
+                </dt>
+                <dd className="mt-1 font-bold text-n-ink">
+                  {selectedBalance.shiftLabel ?? selectedBalance.shiftId ?? "No shift linked"}
                 </dd>
               </div>
               <div className="sm:col-span-2">
-                <dt className="text-xs font-black uppercase tracking-[0.18em] text-ledger-moss">
-                  Last payment trail
+                <dt className="text-xs font-semibold text-n-muted">
+                  Note / reason
                 </dt>
-                <dd className="mt-1 font-black text-ledger-ink">
-                  {selectedBalance.latestPayment
-                    ? `${formatMoney(selectedBalance.latestPayment.amount)} · ${formatDateTime(selectedBalance.latestPayment.paidAt)}${selectedBalance.lastPaymentBy ? ` · ${selectedBalance.lastPaymentBy}` : ""}`
-                    : "No payment recorded yet"}
+                <dd className="mt-1 font-bold text-n-ink">
+                  {selectedBalance.notes ?? "No reason saved."}
                 </dd>
               </div>
             </dl>
           ) : null}
         </Card>
 
-        <Card className="rounded-3xl shadow-none">
+        <Card>
           <div className="flex items-center gap-3">
-            <CalendarDays aria-hidden="true" className="size-5 text-ledger-moss" />
-            <h3 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+            <CalendarDays aria-hidden="true" className="size-5 text-n-muted" />
+            <h3 className="text-lg font-bold text-n-ink">
               Record payment
             </h3>
           </div>
-          <p className="mt-3 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-3 text-sm font-medium leading-6 text-n-dim">
             Payments are inserted server-side, linked to staff and shift when available, and logged
             to the audit trail.
           </p>
           <div className="mt-5">
             <BalancePaymentPanel key={selectedBalance?.id ?? "none"} balance={selectedBalance} />
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="text-lg font-bold text-n-ink">
+            Settlement history
+          </h3>
+          <div className="mt-4 space-y-3">
+            {selectedBalance?.paymentHistory.length ? (
+              selectedBalance.paymentHistory.map((payment) => (
+                <div className="rounded-lg border border-n-border bg-white/75 px-4 py-3" key={payment.id}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-bold text-n-ink">{formatMoney(payment.amount)}</p>
+                    <span className="rounded-lg bg-white px-3 py-1 text-xs font-bold uppercase text-n-muted">
+                      {payment.paymentMethod}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-n-dim">
+                    {formatDateTime(payment.paidAt)} · {payment.receivedBy ?? "Unknown staff"}
+                    {payment.shiftId ? ` · Shift ${payment.shiftId.slice(0, 8)}` : ""}
+                  </p>
+                  {payment.notes ? (
+                    <p className="mt-2 text-sm font-bold text-n-ink">{payment.notes}</p>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-n-border bg-white/70 px-4 py-6 text-sm font-medium text-n-dim">
+                No settlement payments recorded yet.
+              </div>
+            )}
           </div>
         </Card>
       </div>

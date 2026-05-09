@@ -207,22 +207,22 @@ export default async function ShiftsPage() {
   }
 
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+        <p className="text-xs font-semibold text-n-muted">
           Shift Accountability
         </p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+        <h2 className="mt-2 text-2xl font-bold text-n-ink sm:text-3xl">
           Shift Reports
         </h2>
-        <p className="mt-2 text-sm font-bold text-ledger-moss">
+        <p className="mt-2 text-sm font-medium text-n-dim">
           {roleLabels[profile.role]} view of active and completed staff shifts.
         </p>
       </div>
 
       <section className="space-y-4">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+          <p className="text-xs font-semibold text-n-muted">
             Active Shifts
           </p>
         </div>
@@ -234,22 +234,22 @@ export default async function ShiftsPage() {
             const summary = activeSummaries.get(shift.id);
 
             return (
-              <Card className="rounded-3xl shadow-none" key={shift.id}>
+              <Card key={shift.id}>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ledger-lime text-ledger-ink">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-n-hover text-n-muted">
                     <UserRoundCheck aria-hidden="true" className="size-5" />
                   </span>
-                  <p className="text-right text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
+                  <p className="text-right text-xs font-semibold text-n-muted">
                     Open
                   </p>
                 </div>
-                <h3 className="mt-5 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                <h3 className="mt-5 text-lg font-bold text-n-ink">
                   {staff?.full_name ?? "Staff member"}
                 </h3>
-                <p className="mt-1 text-sm font-bold text-ledger-moss">
+                <p className="mt-1 text-sm font-medium text-n-dim">
                   {staffProfile?.employee_code ?? staffProfile?.job_title ?? staff?.email ?? "No staff code"}
                 </p>
-                <div className="mt-5 grid gap-3 rounded-2xl bg-ledger-paper/70 p-4">
+                <div className="mt-5 grid gap-3 rounded-xl bg-n-hover p-4">
                   <ShiftMetric label="Started" value={dateTimeFormatter.format(new Date(shift.opened_at))} />
                   <ShiftMetric label="Opening cash" value={formatAmount(shift.opening_cash)} />
                   <ShiftMetric label="Cash collected" value={formatAmount(summary?.cashSales)} />
@@ -268,7 +268,7 @@ export default async function ShiftsPage() {
                   </div>
                 ) : null}
                 {shift.notes ? (
-                  <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">{shift.notes}</p>
+                  <p className="mt-4 text-sm font-medium leading-6 text-n-dim">{shift.notes}</p>
                 ) : null}
               </Card>
             );
@@ -276,10 +276,10 @@ export default async function ShiftsPage() {
         </div>
 
         {activeShifts.length === 0 ? (
-          <Card className="rounded-3xl py-14 text-center shadow-none">
-            <CalendarClock aria-hidden="true" className="mx-auto size-10 text-ledger-moss" />
-            <p className="mt-4 font-black text-ledger-ink">No active shifts</p>
-            <p className="mt-1 text-sm font-bold text-ledger-moss">
+          <Card className="py-14 text-center">
+            <CalendarClock aria-hidden="true" className="mx-auto size-10 text-n-muted" />
+            <p className="mt-4 font-bold text-n-ink">No active shifts</p>
+            <p className="mt-1 text-sm font-medium text-n-dim">
               Open shifts will appear here as staff start their day.
             </p>
           </Card>
@@ -288,7 +288,7 @@ export default async function ShiftsPage() {
 
       <section className="space-y-4">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+          <p className="text-xs font-semibold text-n-muted">
             Completed Shift Reports
           </p>
         </div>
@@ -301,19 +301,19 @@ export default async function ShiftsPage() {
             const variance = numeric(shift.cash_difference);
 
             return (
-              <Card className="rounded-3xl shadow-none" key={shift.id}>
+              <Card key={shift.id}>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-n-ink text-white">
                     <ClipboardList aria-hidden="true" className="size-5" />
                   </span>
-                  <p className="text-right text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
+                  <p className="text-right text-xs font-semibold text-n-muted">
                     {shift.status}
                   </p>
                 </div>
-                <h3 className="mt-5 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+                <h3 className="mt-5 text-lg font-bold text-n-ink">
                   {staff?.full_name ?? "Staff member"}
                 </h3>
-                <div className="mt-5 grid gap-3 rounded-2xl bg-ledger-paper/70 p-4">
+                <div className="mt-5 grid gap-3 rounded-xl bg-n-hover p-4">
                   <ShiftMetric label="Start time" value={dateTimeFormatter.format(new Date(shift.opened_at))} />
                   <ShiftMetric
                     label="End time"
@@ -322,7 +322,7 @@ export default async function ShiftsPage() {
                   <ShiftMetric label="Total entries" value={(report?.totalEntries ?? 0).toLocaleString("en-PH")} />
                   <ShiftMetric label="Cash collected" value={formatAmount(report?.cashCollected)} />
                   <ShiftMetric label="GCash collected" value={formatAmount(report?.gcashCollected)} />
-                  <ShiftMetric label="Pending / Utang" value={formatAmount(report?.pendingUtang)} />
+                  <ShiftMetric label="Utang / Pay later" value={formatAmount(report?.pendingUtang)} />
                   <ShiftMetric label="Expected cash" value={formatAmount(shift.expected_cash ?? report?.expectedCash)} />
                   <ShiftMetric label="Actual cash" value={formatAmount(shift.actual_cash)} />
                   <ShiftMetric label="Variance" value={formatAmount(shift.cash_difference)} />
@@ -332,13 +332,13 @@ export default async function ShiftsPage() {
                   />
                 </div>
                 {variance !== 0 ? (
-                  <p className="mt-4 flex gap-2 rounded-2xl bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-800">
+                  <p className="mt-4 flex gap-2 rounded-lg bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-800">
                     <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                     {shift.variance_note ?? "Variance requires owner review."}
                   </p>
                 ) : null}
                 {shift.closing_note ? (
-                  <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">{shift.closing_note}</p>
+                  <p className="mt-4 text-sm font-medium leading-6 text-n-dim">{shift.closing_note}</p>
                 ) : null}
               </Card>
             );
@@ -346,10 +346,10 @@ export default async function ShiftsPage() {
         </div>
 
         {completedShifts.length === 0 ? (
-          <Card className="rounded-3xl py-14 text-center shadow-none">
-            <ClipboardList aria-hidden="true" className="mx-auto size-10 text-ledger-moss" />
-            <p className="mt-4 font-black text-ledger-ink">No completed shifts</p>
-            <p className="mt-1 text-sm font-bold text-ledger-moss">
+          <Card className="py-14 text-center">
+            <ClipboardList aria-hidden="true" className="mx-auto size-10 text-n-muted" />
+            <p className="mt-4 font-bold text-n-ink">No completed shifts</p>
+            <p className="mt-1 text-sm font-medium text-n-dim">
               Closed shift reports will appear here for owner review.
             </p>
           </Card>
@@ -362,8 +362,8 @@ export default async function ShiftsPage() {
 function ShiftMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-ledger-moss">{label}</span>
-      <span className="text-right text-sm font-black text-ledger-ink">{value}</span>
+      <span className="text-sm font-bold text-n-muted">{label}</span>
+      <span className="text-right text-sm font-bold text-n-ink">{value}</span>
     </div>
   );
 }

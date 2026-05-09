@@ -1,12 +1,12 @@
 import { Card } from "@/components/ui/card";
 
 function SkeletonBlock({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-2xl bg-ledger-line ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-n-border ${className}`} />;
 }
 
 export default function FrontDeskLoading() {
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <SkeletonBlock className="h-4 w-40" />
         <SkeletonBlock className="mt-4 h-12 w-64 max-w-full" />
@@ -19,7 +19,7 @@ export default function FrontDeskLoading() {
         ))}
       </div>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
           <div>
             <SkeletonBlock className="h-4 w-32" />
@@ -39,7 +39,7 @@ export default function FrontDeskLoading() {
         </div>
       </Card>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <SkeletonBlock className="h-10 w-64 max-w-full" />
         <SkeletonBlock className="mt-5 h-14" />
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

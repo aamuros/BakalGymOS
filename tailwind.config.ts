@@ -5,17 +5,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ledger: {
-          ink: "#17201b",
-          moss: "#324f3b",
-          lime: "#d7f171",
-          cream: "#f6f0df",
-          paper: "#fffcf2",
-          line: "#ded5bc",
+        n: {
+          ink: "#171717",
+          dark: "#262626",
+          muted: "#525252",
+          dim: "#737373",
+          focus: "#3b82f6",
+          bg: "#fafafa",
+          surface: "#ffffff",
+          border: "#e5e5e5",
+          hover: "#f5f5f5",
         },
       },
       boxShadow: {
-        ledger: "0 24px 80px rgba(23, 32, 27, 0.14)",
+        n: "0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 24px rgba(0, 0, 0, 0.04)",
+        "n-lg": "0 1px 3px rgba(0, 0, 0, 0.04), 0 24px 80px rgba(0, 0, 0, 0.06)",
       },
     },
   },

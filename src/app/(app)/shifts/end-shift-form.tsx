@@ -95,7 +95,7 @@ export function EndShiftForm({
       <input type="hidden" {...register("shift_id")} />
       <input type="hidden" {...register("expected_cash", { valueAsNumber: true })} />
 
-      <div className="grid gap-3 rounded-2xl bg-ledger-paper/70 p-4">
+      <div className="grid gap-3 rounded-lg bg-n-hover p-4">
         <ShiftCloseMetric label="Starting cash" value={formatAmount(startingCash)} />
         <ShiftCloseMetric label="Cash sales" value={formatAmount(cashSales)} />
         <ShiftCloseMetric label="Expenses" value={`-${formatAmount(expenses)}`} />
@@ -107,7 +107,7 @@ export function EndShiftForm({
         <Label htmlFor={`actual_cash_${shiftId}`}>Actual cash counted</Label>
         <Input
           id={`actual_cash_${shiftId}`}
-          className="min-h-14 text-lg font-black"
+          className="min-h-14 text-lg font-bold"
           inputMode="decimal"
           min="0"
           step="0.01"
@@ -119,12 +119,12 @@ export function EndShiftForm({
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-ledger-line bg-white/80 px-4 py-3">
-        <span className="flex items-center gap-2 text-sm font-black text-ledger-moss">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-n-border bg-white/80 px-4 py-3">
+        <span className="flex items-center gap-2 text-sm font-bold text-n-muted">
           <Calculator aria-hidden="true" className="size-4" />
           Cash variance
         </span>
-        <span className={variance === 0 ? "text-sm font-black text-ledger-ink" : "text-sm font-black text-red-700"}>
+        <span className={variance === 0 ? "text-sm font-bold text-n-ink" : "text-sm font-bold text-red-700"}>
           {formatAmount(variance)}
         </span>
       </div>
@@ -133,7 +133,7 @@ export function EndShiftForm({
         <div className="space-y-2">
           <Label htmlFor={`variance_note_${shiftId}`}>Variance explanation</Label>
           <textarea
-            className="min-h-24 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-base font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+            className="min-h-24 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-base font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
             id={`variance_note_${shiftId}`}
             placeholder="Required when actual cash does not match expected cash"
             {...register("variance_note")}
@@ -147,7 +147,7 @@ export function EndShiftForm({
       <div className="space-y-2">
         <Label htmlFor={`close_note_${shiftId}`}>Closing notes</Label>
         <textarea
-          className="min-h-24 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-base font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-24 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-base font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id={`close_note_${shiftId}`}
           placeholder="Optional handoff notes"
           {...register("note")}
@@ -155,7 +155,7 @@ export function EndShiftForm({
         {errors.note ? <p className="text-sm font-bold text-red-700">{errors.note.message}</p> : null}
       </div>
 
-      <Button className="min-h-14 w-full gap-2 rounded-2xl text-base" disabled={isPending} type="submit">
+      <Button className="min-h-14 w-full gap-2 rounded-lg text-base" disabled={isPending} type="submit">
         <LogOut aria-hidden="true" className="size-4" />
         {isPending ? "Closing..." : "End shift"}
       </Button>
@@ -166,8 +166,8 @@ export function EndShiftForm({
 function ShiftCloseMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-ledger-moss">{label}</span>
-      <span className="text-right text-sm font-black text-ledger-ink">{value}</span>
+      <span className="text-sm font-bold text-n-muted">{label}</span>
+      <span className="text-right text-sm font-bold text-n-ink">{value}</span>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
 } from "@/app/(app)/shifts/schema";
 import { roleLabels, type AppRole } from "@/lib/auth/permissions";
 import { requireCurrentProfile, requireModuleAccess } from "@/lib/auth/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 type ActionResult = {
   error?: string;
@@ -32,7 +32,7 @@ export async function startShift(input: StartShiftValues): Promise<ActionResult>
     return { error: parsed.error.issues[0]?.message ?? "Invalid shift details." };
   }
 
-  const supabase = profile.accessMode === "staff_pin" ? createServiceClient() : await createClient();
+  const supabase = await createClient();
   const { data: existingStaffProfile, error: staffError } = await supabase
     .from("staff_profiles")
     .select("id, can_open_shift, status")
@@ -118,39 +118,12 @@ export async function startShift(input: StartShiftValues): Promise<ActionResult>
 }
 
 export async function closeShift(input: CloseShiftValues): Promise<ActionResult> {
-  const profile = await requireCurrentProfile();
+  await requireCurrentProfile();
 
   const parsed = closeShiftSchema.safeParse(input);
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid shift reconciliation." };
-  }
-
-  if (profile.accessMode === "staff_pin") {
-    if (!profile.staffProfileId) {
-      return { error: "Staff PIN session is not active." };
-    }
-
-    const supabase = createServiceClient();
-    const { error } = await supabase.rpc("close_staff_pin_shift_reconciliation", {
-      p_actor_id: profile.id,
-      p_actual_cash: parsed.data.actual_cash,
-      p_notes: parsed.data.note || null,
-      p_shift_id: parsed.data.shift_id,
-      p_staff_profile_id: profile.staffProfileId,
-      p_variance_note: parsed.data.variance_note || null,
-    });
-
-    if (error) {
-      return { error: error.message };
-    }
-
-    revalidatePath("/front-desk");
-    revalidatePath("/shifts");
-    revalidatePath("/reports");
-    revalidatePath("/owner-dashboard");
-
-    return {};
   }
 
   const supabase = await createClient();

@@ -11,6 +11,20 @@ type EditMemberPageProps = {
   params: Promise<{ id: string }>;
 };
 
+function getMemberFormDefaults(member: {
+  full_name: string;
+  member_code: string;
+  phone: string | null;
+  status: string;
+}): MemberFormValues {
+  return {
+    full_name: member.full_name,
+    member_code: member.member_code,
+    phone: member.phone ?? "",
+    status: member.status === "expired" ? "inactive" : (member.status as MemberFormValues["status"]),
+  };
+}
+
 export default async function EditMemberPage({ params }: EditMemberPageProps) {
   const profile = await requireModuleAccess("/members");
 
@@ -31,18 +45,18 @@ export default async function EditMemberPage({ params }: EditMemberPageProps) {
   }
 
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+        <p className="text-xs font-semibold text-n-muted">
           Member Management
         </p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+        <h2 className="mt-2 text-2xl font-bold text-n-ink sm:text-3xl">
           Edit member
         </h2>
       </div>
-      <Card className="rounded-3xl">
+      <Card>
         <MemberForm
-          defaultValues={member as MemberFormValues}
+          defaultValues={getMemberFormDefaults(member)}
           memberId={id}
           mode="edit"
         />

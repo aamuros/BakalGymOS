@@ -104,7 +104,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
 
   if (!balance) {
     return (
-      <div className="rounded-3xl border border-dashed border-ledger-line bg-white/65 p-5 text-sm font-bold text-ledger-moss">
+      <div className="rounded-lg border border-dashed border-n-border bg-white/65 p-5 text-sm font-bold text-n-dim">
         Select a balance to record a payment.
       </div>
     );
@@ -112,7 +112,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
 
   if (balance.remainingAmount <= 0) {
     return (
-      <div className="rounded-3xl border border-green-200 bg-green-50 px-4 py-4 text-sm font-bold text-green-800">
+      <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-4 text-sm font-bold text-green-800">
         This balance is fully settled. The last recorded payment remains in the audit trail.
       </div>
     );
@@ -126,19 +126,19 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
   return (
     <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
 
       {serverMessage ? (
-        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
           {serverMessage}
         </div>
       ) : null}
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+        <legend className="text-xs font-semibold text-n-muted">
           Payment mode
         </legend>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -148,16 +148,16 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
             return (
               <label
                 className={cn(
-                  "flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-bold transition",
+                  "flex cursor-pointer items-center justify-between rounded-lg border px-4 py-3 text-sm font-bold transition",
                   checked
-                    ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                    : "border-ledger-line bg-white/75 text-ledger-ink hover:border-ledger-moss",
+                    ? "border-n-ink bg-n-ink text-white"
+                    : "border-n-border bg-white/75 text-n-ink hover:border-n-muted/30",
                 )}
                 key={mode}
               >
                 <input className="sr-only" type="radio" value={mode} {...register("payment_mode")} />
                 <span>{mode === "full" ? "Full payment" : "Partial payment"}</span>
-                <span className={cn("text-xs font-black uppercase tracking-[0.16em]", checked ? "text-ledger-lime" : "text-ledger-moss")}>
+                <span className={cn("text-xs font-bold", checked ? "text-white" : "text-n-muted")}>
                   {mode === "full" ? remainingLabel : "Custom amount"}
                 </span>
               </label>
@@ -170,7 +170,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+        <legend className="text-xs font-semibold text-n-muted">
           Payment method
         </legend>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -182,15 +182,15 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
             return (
               <label
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold transition",
+                  "flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-bold transition",
                   checked
-                    ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                    : "border-ledger-line bg-white/75 text-ledger-ink hover:border-ledger-moss",
+                    ? "border-n-ink bg-n-ink text-white"
+                    : "border-n-border bg-white/75 text-n-ink hover:border-n-muted/30",
                 )}
                 key={method}
               >
                 <input className="sr-only" type="radio" value={method} {...register("payment_method")} />
-                <Icon aria-hidden="true" className={cn("size-4", checked ? "text-ledger-lime" : "text-ledger-moss")} />
+                <Icon aria-hidden="true" className={cn("size-4", checked ? "text-white" : "text-n-dark")} />
                 <span>{meta.label}</span>
               </label>
             );
@@ -212,7 +212,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
             type="number"
             {...register("amount", { valueAsNumber: true })}
           />
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-ledger-moss">
+          <p className="text-xs font-semibold text-n-muted">
             Remaining balance: {remainingLabel}
           </p>
           {errors.amount ? (
@@ -220,7 +220,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
           ) : null}
         </div>
       ) : (
-        <div className="rounded-2xl border border-ledger-line bg-white/75 px-4 py-3 text-sm font-bold text-ledger-moss">
+        <div className="rounded-lg border border-n-border bg-white/75 px-4 py-3 text-sm font-medium text-n-dim">
           Full payment will settle the entire remaining balance of {remainingLabel}.
         </div>
       )}
@@ -229,7 +229,7 @@ export function BalancePaymentPanel({ balance, onRecorded }: BalancePaymentPanel
         <Label htmlFor={`balance_payment_note_${balance.id}`}>Note</Label>
         <textarea
           id={`balance_payment_note_${balance.id}`}
-          className="min-h-28 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-base text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-28 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-base text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           placeholder="Optional note for the payment record"
           {...register("note")}
         />

@@ -13,12 +13,12 @@ export default function EntryReconciliationError({
   reset: () => void;
 }) {
   return (
-    <Card className="ledger-rise rounded-3xl text-center shadow-none">
+    <Card className="page-enter text-center">
       <AlertTriangle aria-hidden="true" className="mx-auto size-11 text-red-700" />
-      <h2 className="mt-4 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+      <h2 className="mt-4 text-xl font-bold text-n-ink sm:text-2xl">
         Entry reconciliation could not load
       </h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-ledger-moss">
+      <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-red-900">
         Supabase returned an error while loading entries: {error.message}
       </p>
       <Button className="mt-6" onClick={reset} type="button">

@@ -57,7 +57,7 @@ export function StartShiftForm() {
         <Label htmlFor="starting_cash">Starting cash amount</Label>
         <Input
           id="starting_cash"
-          className="min-h-14 text-lg font-black"
+          className="min-h-14 text-lg font-bold"
           inputMode="decimal"
           min="0"
           step="0.01"
@@ -72,7 +72,7 @@ export function StartShiftForm() {
       <div className="space-y-2">
         <Label htmlFor="note">Note</Label>
         <textarea
-          className="min-h-28 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-base font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-28 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-base font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id="note"
           placeholder="Optional opening note"
           {...register("note")}
@@ -80,7 +80,7 @@ export function StartShiftForm() {
         {errors.note ? <p className="text-sm font-bold text-red-700">{errors.note.message}</p> : null}
       </div>
 
-      <Button className="min-h-14 w-full gap-2 rounded-2xl text-base" disabled={isPending} type="submit">
+      <Button className="min-h-14 w-full gap-2 rounded-lg text-base" disabled={isPending} type="submit">
         <Play aria-hidden="true" className="size-4" />
         {isPending ? "Starting..." : "Start shift"}
       </Button>

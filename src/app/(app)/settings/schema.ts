@@ -52,6 +52,17 @@ export const paymentSettingsSchema = z.object({
   require_gcash_proof: z.boolean(),
 });
 
+export const walkInRateSchema = z.object({
+  amount: z.number().min(0, "Rate cannot be negative."),
+  currency: z.string().trim().min(3).max(3),
+});
+
+export const operationalSettingsSchema = z.object({
+  allow_utang: z.boolean(),
+  grace_period_days: z.number().int().min(0, "Grace period cannot be negative.").max(365, "Grace period too long."),
+  max_utang_warning_amount: z.number().min(0, "Amount cannot be negative."),
+});
+
 export const exceptionTypeSchema = z.object({
   enabled: z.boolean(),
   key: z.string().trim().min(2).max(60).regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers, and underscores."),
@@ -94,6 +105,8 @@ export const staffAccessSchema = z.object({
 export type ExceptionTypeSettingsValues = z.infer<typeof exceptionTypeSettingsSchema>;
 export type GymProfileValues = z.infer<typeof gymProfileSchema>;
 export type MembershipRateValues = z.infer<typeof membershipRateSchema>;
+export type OperationalSettingsValues = z.infer<typeof operationalSettingsSchema>;
 export type PaymentSettingsValues = z.infer<typeof paymentSettingsSchema>;
 export type RolePermissionValues = z.infer<typeof rolePermissionSchema>;
 export type StaffAccessValues = z.infer<typeof staffAccessSchema>;
+export type WalkInRateValues = z.infer<typeof walkInRateSchema>;

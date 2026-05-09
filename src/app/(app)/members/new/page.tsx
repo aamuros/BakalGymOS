@@ -13,16 +13,16 @@ export default async function NewMemberPage() {
   }
 
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div>
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
+        <p className="text-xs font-semibold text-n-muted">
           Member Management
         </p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+        <h2 className="mt-2 text-2xl font-bold text-n-ink sm:text-3xl">
           Add member
         </h2>
       </div>
-      <Card className="rounded-3xl">
+      <Card>
         <MemberForm mode="create" />
       </Card>
     </div>

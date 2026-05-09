@@ -6,21 +6,30 @@ The GitHub repository is named **BakalGymOS**, while the application itself is b
 
 ## Project Status
 
-GymLedger is currently an **MVP / school project prototype** with a working full-stack foundation.
+GymLedger is an **MVP / school project prototype** with a fully working full-stack system covering all core gym operations.
 
-The strongest implemented areas are:
+The implemented areas include:
 
 - Staff authentication with Supabase Auth
-- Role-based protected app shell
-- Front Desk dashboard
-- Staff shift start workflow
-- Member search and member check-in
-- Walk-in logging with cash, GCash, and pending/utang options
-- Member list, creation, editing, and profile pages
-- Entry Reconciliation / owner audit screen
+- Role-based protected app shell with configurable permissions
+- Front Desk dashboard with active shift, check-ins, walk-ins, and recent activity
+- Staff shift start and shift closing with cash reconciliation
+- Member search, creation, editing, profiles, QR cards, and renewal
+- Active member check-in with subscription validation and entry limits
+- Expired member handling with pay walk-in, utang, and owner override
+- Walk-in logging with cash, GCash (with proof upload), and utang options
+- GCash proof upload, duplicate detection, and owner review workflow
+- Utang tracking with partial and full settlement
+- Exception creation and owner review
+- Owner Review queue for exceptions, GCash proofs, and shift variances
+- Entry Reconciliation for audit-level entry inspection
+- Owner Dashboard with operational metrics
+- Notifications for operational alerts
+- Reports with export capability
+- Audit Logs with append-only protection
+- Settings for gym profile, walk-in rate, membership rates, payment settings, operational settings, staff access, role permissions, and staff PINs
 - Supabase database schema, RLS policies, RPC functions, storage bucket policies, and seed data
-
-Some modules are still scaffolded or partially implemented. See [Known Limitations](#known-limitations).
+- 124 automated tests covering login, role access, all core flows, and security
 
 ## Features
 
@@ -32,49 +41,69 @@ Some modules are still scaffolded or partially implemented. See [Known Limitatio
 - Protected app layout for authenticated users
 - Unauthorized redirect when a user accesses a module outside their role
 - Role-based sidebar navigation
+- Configurable per-role permission overrides stored in the database
 
 ### User Roles
 
-The system currently supports these application roles:
+The system supports these application roles:
 
 | Role | Purpose |
 |---|---|
-| `admin` | Full system access |
 | `owner` | Oversees operations, settings, reports, members, payments, shifts, exceptions, and front desk |
+| `admin` | Full system access |
 | `manager` | Manages daily operations, members, payments, shifts, exceptions, reports, and front desk |
-| `front_desk` | Handles front-desk operations, member lookup, member check-ins, and exceptions |
-| `accountant` | Reviews payments and reports |
+| `front_desk` | Handles front-desk operations, member lookup, member check-ins, walk-ins, and exceptions |
+| `accountant` | Reviews payments, balances, and reports |
 | `member` | Seeded as auth users, but not currently part of the protected staff app shell |
 
 ### Module Access
 
-| Role | Current Module Access |
+| Role | Module Access |
 |---|---|
-| `admin` | Front Desk, Owner Dashboard, Members, Payments, Entry Reconciliation, Shifts, Exceptions, Reports, Settings |
-| `owner` | Owner Dashboard, Reports, Members, Payments, Entry Reconciliation, Shifts, Exceptions, Settings, Front Desk |
-| `manager` | Front Desk, Owner Dashboard, Members, Payments, Entry Reconciliation, Shifts, Exceptions, Reports |
-| `front_desk` | Front Desk, Members, Exceptions |
-| `accountant` | Reports, Payments |
+| `admin` | Front Desk, Owner Dashboard, Members, Payments, Balances, Shifts, Owner Review, Entry Reconciliation, Exceptions, Notifications, Reports, Audit Logs, Settings |
+| `owner` | Owner Review, Front Desk, Members, Payments, Balances, Shifts, Owner Dashboard, Entry Reconciliation, Exceptions, Notifications, Reports, Audit Logs, Settings |
+| `manager` | Front Desk, Members, Payments, Balances, Shifts, Owner Review, Owner Dashboard, Entry Reconciliation, Exceptions, Notifications, Reports |
+| `front_desk` | Front Desk, Members, Payments, Shifts, Balances, Exceptions, Notifications |
+| `accountant` | Payments, Balances, Reports, Notifications |
+
+### Permissions
+
+| Permission | owner | admin | manager | front_desk | accountant |
+|---|---|---|---|---|---|
+| `record_payments` | Yes | Yes | Yes | Yes | No |
+| `correct_payments` | Yes | Yes | Yes | No | No |
+| `approve_exceptions` | Yes | Yes | Yes | No | No |
+| `view_reports` | Yes | Yes | Yes | No | Yes |
+| `manage_staff` | Yes | Yes | No | No | No |
+| `change_rates` | Yes | Yes | No | No | No |
+| `export_data` | Yes | Yes | No | No | Yes |
+
+Permissions can be overridden per role through the Settings page.
 
 ## Main Routes
 
-| Route | Status | Description |
-|---|---|---|
-| `/` | Implemented | Public landing page |
-| `/login` | Implemented | Supabase login screen |
-| `/front-desk` | Implemented | Main operational dashboard for check-ins, walk-ins, payments, balances, active shift, and recent activity |
-| `/members` | Implemented | Searchable member list |
-| `/members/new` | Implemented | Create member form |
-| `/members/[id]` | Implemented | Member profile with subscription and balance summary |
-| `/members/[id]/edit` | Implemented | Edit member form |
-| `/entry-reconciliation` | Implemented | Owner/management audit screen for checking why each entry was allowed |
-| `/shifts` | Implemented | Active shift list |
-| `/owner-dashboard` | Scaffolded | Protected placeholder module |
-| `/payments` | Scaffolded | Protected placeholder module |
-| `/exceptions` | Scaffolded | Protected placeholder module |
-| `/reports` | Scaffolded | Protected placeholder module |
-| `/settings` | Scaffolded | Protected placeholder module |
-| `/unauthorized` | Implemented | Access-denied screen |
+| Route | Description |
+|---|---|
+| `/` | Public landing page |
+| `/login` | Supabase login screen |
+| `/front-desk` | Main operational dashboard for check-ins, walk-ins, payments, balances, active shift, and recent activity |
+| `/members` | Searchable member list |
+| `/members/new` | Create member form |
+| `/members/[id]` | Member profile with subscription, balance summary, QR card, and renewal |
+| `/members/[id]/edit` | Edit member form |
+| `/shifts` | Active and past shifts with start and close forms |
+| `/owner-review` | Consolidated review queue for exceptions, GCash proofs, and shift variances |
+| `/owner-dashboard` | Operational metrics and review queues |
+| `/payments` | Payment overview |
+| `/payments/gcash-review` | GCash proof review controls |
+| `/balances` | Pending utang balances with partial and full settlement |
+| `/exceptions` | Exception creation and review |
+| `/entry-reconciliation` | Audit-level entry inspection with filters |
+| `/notifications` | Operational alerts |
+| `/reports` | Revenue, attendance, and reconciliation summaries with export |
+| `/audit-logs` | Append-only audit log viewer |
+| `/settings` | Gym profile, walk-in rate, membership rates, payment settings, operational settings, staff access, role permissions, staff PINs |
+| `/unauthorized` | Access-denied screen |
 
 ## Core Workflows
 
@@ -97,7 +126,7 @@ The system currently supports these application roles:
 
 ### Member Check-In
 
-1. Staff searches a member by name, phone number, or member ID.
+1. Staff searches a member by name, phone number, member ID, or QR code.
 2. The system loads the member, current subscription, pending balance, and latest check-in.
 3. If the member is active and has a valid subscription, staff can check them in.
 4. The database RPC validates:
@@ -126,31 +155,126 @@ The system currently supports these application roles:
    - Pending / Utang creates a pending walk-in balance.
 6. A gym entry is created for the walk-in.
 
+### Expired Member Handling
+
+When a member's subscription has expired, staff can choose from:
+
+- **Pay Walk-In**: Record a one-time walk-in payment (cash, GCash, or other) and allow entry.
+- **Record Utang**: Allow entry and record an unpaid balance against the member.
+- **Owner Override**: Allow entry with a reason, no payment required.
+
+### Member Renewal
+
+1. Staff opens a member profile page.
+2. Staff selects a membership plan, start date, and payment method.
+3. The `renew_member_subscription` RPC creates a new subscription and records the payment.
+4. The member can now check in under the new subscription.
+
+### GCash Proof Upload
+
+1. After a GCash walk-in, the proof record is in `awaiting_proof` status.
+2. Staff uploads a screenshot (JPEG, PNG, or WebP, max 5 MB).
+3. The system stores the file in the private `gcash-proofs` bucket and updates the proof record.
+4. Duplicate reference numbers are flagged for owner review.
+
+### Shift Closing
+
+1. Staff enters the actual cash counted at end of shift.
+2. The system calculates the variance against expected cash.
+3. If there is a variance, staff must explain it before closing.
+4. The `close_shift_reconciliation` RPC records the closure, variance, and notes.
+5. Shifts with variance appear in the owner review queue.
+
+### Owner Review
+
+The Owner Review page consolidates items needing owner attention:
+
+- **Exceptions**: Approve, reject, or resolve with notes.
+- **GCash Proofs**: Verify, reject, or request follow-up.
+- **Shift Variances**: Acknowledge with notes and mark as reviewed.
+
 ### Entry Reconciliation
 
-The Entry Reconciliation page is intended for owner/management audit.
+The Entry Reconciliation page shows all gym entries with:
 
-It shows:
-
-- All visible entries
-- Entry time
-- Member or guest name
-- Staff member who allowed the entry
-- Related shift
-- Settlement type
-- Payment information
-- Exception information
-- Derived reconciliation status
+- Entry time, member or guest name, staff member, related shift
+- Settlement type and payment information
+- Exception information and reconciliation status
 - Explanation of why the person was allowed in
 
-Supported filters include:
+Filters: search text, date, status, staff, payment method, entry type.
 
-- Search text
-- Date
-- Status
-- Staff
-- Payment method
-- Entry type
+### Balance / Utang Settlement
+
+1. Staff opens the Balances page to see all pending utang records.
+2. Staff can record a full or partial payment (cash, GCash, or other).
+3. The `record_balance_payment` RPC updates the balance and links the payment.
+
+## Demo Flow
+
+Use these steps to demonstrate the full system. All demo accounts use the shared password `Test1234!`.
+
+### 1. Owner Login
+
+- Open `http://localhost:3000/login`
+- Log in as `owner@gymledger.local`
+- The system redirects to the Owner Review queue
+- Browse Owner Dashboard for operational metrics
+
+### 2. Front Desk Login
+
+- Log out and log in as `frontdesk1@gymledger.local`
+- The system redirects to the Front Desk
+
+### 3. Start Shift
+
+- On the Front Desk page, fill in the Start Shift form
+- Enter starting cash (e.g., `1000`) and an optional note
+- Click Start Shift to open a new shift
+
+### 4. Member Check-In
+
+- In the member search box, search for the active member
+- Click Check In to admit the member
+- The entry count on the subscription updates
+
+### 5. Cash Walk-In
+
+- In the Walk-In section, enter a customer name, amount, and select Cash
+- Click Record to log the walk-in entry and payment
+
+### 6. GCash Walk-In
+
+- Enter a customer name, amount, and select GCash
+- Optionally enter a GCash reference number
+- Click Record to log the walk-in
+- If a proof was created, upload a screenshot through the GCash proof form
+
+### 7. Utang Walk-In
+
+- Enter a customer name, amount, and select Pending / Utang
+- Add a reason note (required for utang)
+- Click Record to log the walk-in and create a pending balance
+
+### 8. Close Shift
+
+- Go to the Shifts page
+- Enter the actual cash counted
+- If there is a variance, provide an explanation
+- Click Close Shift to reconcile
+
+### 9. Owner Review
+
+- Log out and log in as `owner@gymledger.local`
+- Open Owner Review to see pending exceptions, GCash proofs, and shift variances
+- Approve or reject items with notes
+
+### 10. Balance Settlement
+
+- Log in as `frontdesk1@gymledger.local`
+- Start a new shift if needed
+- Open the Balances page from the sidebar or navigation
+- Record a full or partial payment against an existing utang record
 
 ## Tech Stack
 
@@ -165,7 +289,9 @@ Supported filters include:
 | Forms | React Hook Form |
 | Validation | Zod |
 | Icons | Lucide React |
+| QR Codes | `qrcode`, `html5-qrcode` |
 | Utilities | `clsx`, `tailwind-merge` |
+| Testing | Node.js built-in test runner |
 | Linting | ESLint |
 
 ## Database Overview
@@ -177,32 +303,33 @@ The project uses Supabase PostgreSQL with migrations, row-level security, databa
 | Table | Purpose |
 |---|---|
 | `profiles` | Application users and roles |
-| `staff_profiles` | Staff employment details and operational permissions |
+| `staff_profiles` | Staff employment details, PINs, and operational permissions |
 | `members` | Gym member records |
 | `membership_plans` | Available membership plans |
 | `member_subscriptions` | Member plan ownership, validity dates, and usage count |
 | `entries` | Member and walk-in gym entries |
 | `payments` | Cash, GCash, and other payment records |
-| `payment_corrections` | Payment correction requests and review status |
 | `exceptions` | Owner approvals, disputes, staff errors, and unusual cases |
 | `shifts` | Open/closed staff shifts and cash accountability |
 | `cash_movements` | Cash-in and cash-out records |
-| `gcash_proofs` | GCash proof metadata |
+| `gcash_proofs` | GCash proof metadata and review status |
 | `walk_in_balances` | Pending walk-in / utang balances |
-| `balances` | Shift/date reconciliation records |
 | `audit_logs` | Append-only audit records |
 | `settings` | System configuration values |
 | `notifications` | User/system notifications |
+| `role_permissions` | Configurable per-role permission overrides |
 
 ### Security Features
 
-- Row-level security enabled on operational tables
-- Role-based RLS helper functions
-- Append-only audit log protection
+- Row-level security enabled on all operational tables
+- Role-based RLS helper functions (`private.has_permission`, `private.staff_pin_has_permission`)
+- Append-only audit log protection via triggers
 - Database triggers for `updated_at`
 - Audit triggers for major entity changes
-- Protected GCash proof storage bucket
+- Protected GCash proof storage bucket with MIME type restrictions
 - Storage policies for staff upload/read and management review/delete
+- Revoked public execute on all privileged RPC functions
+- Permission-checked storage mutation policies
 
 ### Important RPC Functions
 
@@ -210,6 +337,17 @@ The project uses Supabase PostgreSQL with migrations, row-level security, databa
 |---|---|
 | `create_walk_in` | Creates walk-in entries, payments, GCash proof metadata, or pending balances |
 | `create_member_check_in` | Validates and records active member check-ins |
+| `handle_expired_member_entry` | Handles expired member walk-in, utang, or owner override |
+| `renew_member_subscription` | Renews a member's subscription with payment recording |
+| `close_shift_reconciliation` | Closes a shift with actual cash, variance calculation, and notes |
+| `review_gcash_proof` | Owner review actions on GCash proofs (verify, reject, follow-up) |
+| `review_exception` | Owner review actions on exceptions (approve, reject) |
+| `create_exception` | Creates a new exception record |
+| `mark_gcash_proof_uploaded` | Records GCash proof file upload metadata |
+| `record_balance_payment` | Records full or partial payment against a utang balance |
+| `update_admin_setting` | Updates system settings with audit logging |
+| `update_role_permissions` | Updates configurable per-role permission overrides |
+| `update_staff_access` | Updates staff profile details and permissions |
 | `private.log_member_check_in_attempt` | Records check-in success or blocked attempts in audit logs |
 
 ## Local Development
@@ -262,18 +400,13 @@ Open the app at:
 http://localhost:3000
 ```
 
-## Pilot Deployment Checklist
-
-- Set `NEXT_PUBLIC_SUPABASE_URL` to the pilot Supabase project URL.
-- Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the pilot Supabase anon key.
-- Set `SUPABASE_SERVICE_ROLE_KEY` only in the server runtime environment.
-- Set `STAFF_PIN_SESSION_SECRET` to a long random value that is different from the Supabase service-role key.
-- Do not load local seed users, demo passwords, or demo staff PINs into the pilot database.
-- Confirm the `gcash-proofs` bucket is private before accepting real proof images.
-- Confirm database backups are enabled before recording real member, payment, shift, and proof data.
-- Run `npm test`, `npm run lint`, `npm run build`, `npm audit --omit=dev`, and Supabase checks before deploying.
-
 ## Verification
+
+Run the automated test suite (124 tests across 19 suites):
+
+```bash
+npm test
+```
 
 Run linting:
 
@@ -292,6 +425,21 @@ Start the production build locally:
 ```bash
 npm run start
 ```
+
+Full verification before presentation:
+
+```bash
+npm test && npm run lint && npm run build
+```
+
+## Pilot Deployment Checklist
+
+- Set `NEXT_PUBLIC_SUPABASE_URL` to the pilot Supabase project URL.
+- Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the pilot Supabase anon key.
+- Do not load local seed users, demo passwords, or demo staff PINs into the pilot database.
+- Confirm the `gcash-proofs` bucket is private before accepting real proof images.
+- Confirm database backups are enabled before recording real member, payment, shift, and proof data.
+- Run `npm test`, `npm run lint`, and `npm run build` before deploying.
 
 ## Local Demo Accounts
 
@@ -331,13 +479,19 @@ These accounts are for local development and demos only. Do not seed them into a
 │   │   ├── (app)
 │   │   │   ├── front-desk
 │   │   │   ├── members
-│   │   │   ├── entry-reconciliation
 │   │   │   ├── shifts
+│   │   │   ├── owner-review
 │   │   │   ├── owner-dashboard
 │   │   │   ├── payments
+│   │   │   ├── balances
 │   │   │   ├── exceptions
+│   │   │   ├── entry-reconciliation
+│   │   │   ├── notifications
 │   │   │   ├── reports
+│   │   │   ├── audit-logs
 │   │   │   └── settings
+│   │   ├── actions
+│   │   │   └── auth.ts
 │   │   └── page.tsx
 │   ├── components
 │   │   ├── app
@@ -347,6 +501,8 @@ These accounts are for local development and demos only. Do not seed them into a
 │       ├── supabase
 │       ├── modules.ts
 │       └── utils.ts
+├── tests
+│   └── critical-workflows.test.mjs
 ├── supabase
 │   ├── migrations
 │   ├── seed.sql
@@ -357,39 +513,15 @@ These accounts are for local development and demos only. Do not seed them into a
 
 ## Known Limitations
 
-This project is currently an MVP. The following areas are not yet complete:
+This project is an MVP. The following areas are not yet complete:
 
-- Owner Dashboard is still a protected placeholder page.
-- Payments page is still a protected placeholder page.
-- Exceptions page is still a protected placeholder page.
-- Reports page is still a protected placeholder page.
-- Settings page is still a protected placeholder page.
-- End Shift / shift closing is intentionally not implemented in the current MVP UI.
-- GCash proof metadata is created, but a full upload/review UI is not yet complete.
-- Member profile check-in history and payment history are placeholders.
+- QR member cards and front-desk QR lookup exist, but this is not a full production scanner workflow.
 - Payment correction review UI is not yet complete.
-- Reconciliation summary reports are not yet complete.
-- Formal automated tests are not currently defined in `package.json`.
-- The member form currently includes an `expired` status option, while the database tracks expiration primarily through `member_subscriptions`. This should be reviewed before production use.
-
-## Suggested Next Steps
-
-Good next development tasks include:
-
-1. Implement shift closing and cash reconciliation.
-2. Complete the Payments page with payment lists, filters, and review actions.
-3. Add GCash proof upload and review workflow.
-4. Build the Exceptions review page.
-5. Build Reports for attendance, revenue, pending balances, and GCash verification.
-6. Complete Settings for gym profile, walk-in rate, roles, and account preferences.
-7. Add automated tests for server actions, role access, and RPC workflows.
-8. Align member status handling between the form and database enum.
-9. Add screenshots or a demo section for school presentation.
+- Member profile check-in history and payment history are simplified views.
+- The `member` role exists in the database but has no member-facing app shell.
 
 ## School Project Summary
 
-GymLedger demonstrates a practical full-stack information system for a local gym. It includes authentication, authorization, role-based navigation, database-backed workflows, operational business rules, RLS security, audit logging, and seeded demo data.
+GymLedger demonstrates a practical full-stack information system for a local gym. It includes authentication, authorization, role-based navigation, configurable permissions, database-backed workflows, operational business rules, RLS security, audit logging, GCash proof management, utang tracking, shift reconciliation, owner review, and seeded demo data.
 
-The current system is best presented as:
-
-> A role-based gym operations MVP with a completed Front Desk, Members, Shift Start, and Entry Reconciliation workflow, plus a Supabase database foundation for payments, reports, exceptions, settings, and reconciliation.
+The system covers the full gym operations cycle: staff login, shift management, member check-in, walk-in payments (cash, GCash, utang), expired member handling, member renewal, GCash proof review, shift closing with cash reconciliation, owner review of exceptions and variances, balance settlement, entry reconciliation, and audit logging.

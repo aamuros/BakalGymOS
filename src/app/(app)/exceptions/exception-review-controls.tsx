@@ -52,7 +52,7 @@ export function ExceptionReviewControls({
   return (
     <div className="space-y-3">
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
@@ -60,14 +60,14 @@ export function ExceptionReviewControls({
       <div className="space-y-2">
         <Label htmlFor={`owner_note_${exceptionId}`}>Owner note</Label>
         <textarea
-          className="min-h-20 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-sm font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-20 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-sm font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id={`owner_note_${exceptionId}`}
           maxLength={500}
           onChange={(event) => setOwnerNote(event.target.value)}
           placeholder="Optional note for the review record"
           value={ownerNote}
         />
-        <p className="text-xs font-bold text-ledger-moss">{ownerNote.length}/500 characters</p>
+        <p className="text-xs font-bold text-n-dark">{ownerNote.length}/500 characters</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

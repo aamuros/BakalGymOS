@@ -24,9 +24,9 @@ type MemberFormProps = {
 
 const statusLabels: Record<MemberFormValues["status"], string> = {
   active: "Active",
-  expired: "Expired",
-  banned: "Banned",
   inactive: "Inactive",
+  banned: "Banned",
+  archived: "Archived",
 };
 
 export function MemberForm({ defaultValues, memberId, mode }: MemberFormProps) {
@@ -62,7 +62,7 @@ export function MemberForm({ defaultValues, memberId, mode }: MemberFormProps) {
   return (
     <form className="grid gap-5" onSubmit={handleSubmit(onSubmit)}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
@@ -91,7 +91,7 @@ export function MemberForm({ defaultValues, memberId, mode }: MemberFormProps) {
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
           <select
-            className="min-h-12 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 text-base font-bold text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+            className="min-h-12 w-full rounded-xl border border-n-border bg-white/85 px-4 text-base font-bold text-n-ink outline-none transition focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
             id="status"
             {...register("status")}
           >

@@ -12,7 +12,7 @@ type ActionResult = {
 };
 
 const gcashReviewSchema = z.object({
-  action: z.enum(["confirm", "dispute", "follow_up"], {
+  action: z.enum(["verify", "reject", "follow_up"], {
     error: "Choose a valid GCash review action.",
   }),
   note: z.string().trim().max(1000, "Note is too long.").optional(),

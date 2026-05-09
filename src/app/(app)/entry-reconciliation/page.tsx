@@ -12,6 +12,8 @@ import { redirect } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { roleLabels, type AppRole } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
@@ -49,8 +51,8 @@ type RelatedPayment = {
 type RelatedException = {
   amount: number | string | null;
   exception_type: string;
-  owner_note: string | null;
   reason: string;
+  owner_note: string | null;
   resolution_notes: string | null;
   status: string;
 };
@@ -128,7 +130,7 @@ const statusOptions: Array<{ label: string; value: ReconciliationStatus }> = [
   { label: "Active Member", value: "active_member" },
   { label: "Paid Walk-In", value: "paid_walk_in" },
   { label: "Renewed Member", value: "renewed_member" },
-  { label: "Pending Payment", value: "pending_payment" },
+  { label: "Utang / Pay later", value: "pending_payment" },
   { label: "Exception", value: "exception" },
   { label: "Needs Review", value: "needs_review" },
   { label: "Blocked", value: "blocked" },
@@ -137,14 +139,14 @@ const statusOptions: Array<{ label: string; value: ReconciliationStatus }> = [
 const entryTypeOptions = ["active_member", "membership", "cash", "gcash", "pending", "exception"];
 const paymentMethodOptions = ["cash", "gcash", "other", "none"];
 
-const statusStyles: Record<ReconciliationStatus, string> = {
-  active_member: "bg-green-100 text-green-800",
-  blocked: "bg-red-100 text-red-800",
-  exception: "bg-orange-100 text-orange-900",
-  needs_review: "bg-amber-100 text-amber-900",
-  paid_walk_in: "bg-blue-100 text-blue-800",
-  pending_payment: "bg-yellow-100 text-yellow-900",
-  renewed_member: "bg-emerald-100 text-emerald-800",
+const statusToneMap: Record<ReconciliationStatus, "active" | "warn" | "danger" | "neutral"> = {
+  active_member: "active",
+  blocked: "danger",
+  exception: "warn",
+  needs_review: "warn",
+  paid_walk_in: "active",
+  pending_payment: "warn",
+  renewed_member: "active",
 };
 
 const pesoFormatter = new Intl.NumberFormat("en-PH", {
@@ -237,7 +239,7 @@ function getReconciliationStatus(entry: EntryRow): ReconciliationStatus {
   if (
     entry.settlement_type === "pending" ||
     payment?.status === "pending" ||
-    payment?.status === "pending_proof"
+    payment?.status === "awaiting_proof"
   ) {
     return "pending_payment";
   }
@@ -340,9 +342,9 @@ function buildHref(params: Record<string, string | undefined>, entryId?: string)
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-ledger-paper/70 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-ledger-moss">{label}</p>
-      <p className="mt-1 break-words text-sm font-black text-ledger-ink">{value}</p>
+    <div className="rounded-lg bg-n-hover p-4">
+      <p className="text-xs font-semibold text-n-dim">{label}</p>
+      <p className="mt-1 break-words text-sm font-bold text-n-ink">{value}</p>
     </div>
   );
 }
@@ -439,127 +441,127 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
   const pendingPaymentCount = entries.filter((entry) => getReconciliationStatus(entry) === "pending_payment").length;
 
   return (
-    <div className="ledger-rise space-y-6">
+    <div className="page-enter space-y-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_19rem]">
-        <Card className="relative overflow-hidden rounded-3xl">
+        <Card className="relative overflow-hidden">
           <div className="relative">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+            <div className="flex size-14 items-center justify-center rounded-lg bg-n-ink text-white">
               <ClipboardList aria-hidden="true" className="size-7" />
             </div>
-            <p className="mt-7 text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
-              Owner Entry Audit
+            <p className="mt-7 text-xs font-semibold text-n-dim">
+              Owner Review
             </p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-6xl">
-              Entry Reconciliation
+            <h2 className="mt-3 text-xl font-bold leading-tight text-n-ink sm:text-2xl">
+              Owner Review
             </h2>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-ledger-moss">
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-n-dim">
               Inspect every gym entry, who allowed it, the shift it belongs to, and the payment, membership, or exception reason that permitted access.
             </p>
           </div>
         </Card>
 
-        <Card className="flex flex-col justify-between rounded-3xl shadow-none">
+        <Card className="flex flex-col justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+            <p className="text-xs font-semibold text-n-dim">
               Visible Entries
             </p>
-            <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+            <p className="mt-3 text-5xl font-bold text-n-ink">
               {entries.length.toLocaleString("en-PH")}
             </p>
           </div>
-          <p className="mt-6 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-6 text-sm font-medium leading-6 text-n-dim">
             {roleLabels[profile.role]} access. {activeFilterCount ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active.` : "No filters active."}
           </p>
         </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-3xl shadow-none">
+        <Card>
           <ShieldCheck aria-hidden="true" className="size-6 text-green-700" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+          <p className="mt-4 text-xs font-semibold text-n-dim">
             Membership / Paid
           </p>
-          <p className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+          <p className="mt-2 text-xl font-bold sm:text-2xl text-n-ink">
             {entries.filter((entry) => ["active_member", "paid_walk_in", "renewed_member"].includes(getReconciliationStatus(entry))).length.toLocaleString("en-PH")}
           </p>
         </Card>
-        <Card className="rounded-3xl shadow-none">
+        <Card>
           <Clock3 aria-hidden="true" className="size-6 text-yellow-700" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
-            Pending Payment
+          <p className="mt-4 text-xs font-semibold text-n-dim">
+            Utang / Pay later
           </p>
-          <p className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+          <p className="mt-2 text-xl font-bold sm:text-2xl text-n-ink">
             {pendingPaymentCount.toLocaleString("en-PH")}
           </p>
         </Card>
-        <Card className="rounded-3xl shadow-none">
+        <Card>
           <AlertTriangle aria-hidden="true" className="size-6 text-amber-700" />
-          <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+          <p className="mt-4 text-xs font-semibold text-n-dim">
             Needs Review
           </p>
-          <p className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ledger-ink">
+          <p className="mt-2 text-xl font-bold sm:text-2xl text-n-ink">
             {needsReviewCount.toLocaleString("en-PH")}
           </p>
         </Card>
       </div>
 
-      <Card className="rounded-3xl shadow-none">
+      <Card>
         <form className="grid gap-4" action="/entry-reconciliation">
           <div className="grid gap-3 lg:grid-cols-[1.5fr_repeat(5,minmax(0,1fr))]">
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Search</span>
+              <span className="text-sm font-bold text-n-ink">Search</span>
               <span className="relative block">
-                <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ledger-moss" />
+                <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-n-dark" />
                 <Input className="pl-11" name="q" placeholder="Name, member code, note, reference" defaultValue={filters.q} />
               </span>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Date</span>
+              <span className="text-sm font-bold text-n-ink">Date</span>
               <Input name="date" type="date" defaultValue={filters.date} />
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Status</span>
-              <select className="h-12 w-full rounded-2xl border border-ledger-line bg-white/80 px-4 text-sm font-bold text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35" name="status" defaultValue={filters.status}>
+              <span className="text-sm font-bold text-n-ink">Status</span>
+              <Select name="status" defaultValue={filters.status}>
                 <option value="">All statuses</option>
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Staff</span>
-              <select className="h-12 w-full rounded-2xl border border-ledger-line bg-white/80 px-4 text-sm font-bold text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35" name="staff" defaultValue={filters.staff}>
+              <span className="text-sm font-bold text-n-ink">Staff</span>
+              <Select name="staff" defaultValue={filters.staff}>
                 <option value="">All staff</option>
                 {staffOptions.map((staff) => (
                   <option key={staff.id} value={staff.id}>{staff.full_name}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Payment Method</span>
-              <select className="h-12 w-full rounded-2xl border border-ledger-line bg-white/80 px-4 text-sm font-bold text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35" name="method" defaultValue={filters.method}>
+              <span className="text-sm font-bold text-n-ink">Payment Method</span>
+              <Select name="method" defaultValue={filters.method}>
                 <option value="">All methods</option>
                 {paymentMethodOptions.map((method) => (
                   <option key={method} value={method}>{labelize(method)}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-black text-ledger-ink">Entry Type</span>
-              <select className="h-12 w-full rounded-2xl border border-ledger-line bg-white/80 px-4 text-sm font-bold text-ledger-ink outline-none transition focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35" name="type" defaultValue={filters.type}>
+              <span className="text-sm font-bold text-n-ink">Entry Type</span>
+              <Select name="type" defaultValue={filters.type}>
                 <option value="">All types</option>
                 {entryTypeOptions.map((type) => (
                   <option key={type} value={type}>{labelize(type)}</option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <Link className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-ledger-line bg-white/75 px-5 text-sm font-black text-ledger-ink transition hover:border-ledger-moss" href="/entry-reconciliation">
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-lg border border-n-border bg-white/75 px-5 text-sm font-bold text-n-ink transition hover:border-n-dark" href="/entry-reconciliation">
               Clear
             </Link>
-            <button className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-ledger-ink px-5 text-sm font-black text-ledger-paper transition hover:bg-ledger-moss" type="submit">
+            <button className="inline-flex min-h-11 items-center justify-center rounded-lg bg-n-ink px-5 text-sm font-bold text-white transition hover:bg-n-dark" type="submit">
               Apply Filters
             </button>
           </div>
@@ -567,21 +569,21 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
       </Card>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
-        <Card className="rounded-3xl p-0 shadow-none">
-          <div className="flex items-center justify-between gap-4 border-b border-ledger-line px-5 py-4">
+        <Card className="p-0">
+          <div className="flex items-center justify-between gap-4 border-b border-n-border px-5 py-4">
             <div>
-              <h3 className="font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+              <h3 className="text-lg font-bold text-n-ink">
                 Entries
               </h3>
-              <p className="mt-1 text-sm font-bold text-ledger-moss">
+              <p className="mt-1 text-sm font-medium text-n-dim">
                 Showing RLS-visible entries sorted by latest entry time.
               </p>
             </div>
-            <BadgeCheck aria-hidden="true" className="hidden size-6 text-ledger-moss sm:block" />
+            <BadgeCheck aria-hidden="true" className="hidden size-6 text-n-dark sm:block" />
           </div>
 
           {entries.length ? (
-            <div className="divide-y divide-ledger-line">
+            <div className="divide-y divide-n-border">
               {entries.map((entry) => {
                 const status = getReconciliationStatus(entry);
                 const member = relatedOne(entry.members);
@@ -592,8 +594,8 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
                 return (
                   <Link
                     className={cn(
-                      "block px-5 py-4 transition hover:bg-white/45",
-                      isSelected ? "bg-ledger-lime/25" : "",
+                      "block px-5 py-4 transition hover:bg-n-hover",
+                      isSelected ? "bg-blue-50" : "",
                     )}
                     href={buildHref(filterParams, entry.id)}
                     key={entry.id}
@@ -601,37 +603,37 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
                     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.8fr_0.8fr_0.8fr_auto] lg:items-center">
                       <div className="min-w-0">
                         <div className="flex min-w-0 items-center gap-2">
-                          <UserRoundCheck aria-hidden="true" className="size-5 shrink-0 text-ledger-moss" />
-                          <p className="truncate font-black text-ledger-ink">{getPersonName(entry)}</p>
+                          <UserRoundCheck aria-hidden="true" className="size-5 shrink-0 text-n-dark" />
+                          <p className="truncate font-bold text-n-ink">{getPersonName(entry)}</p>
                         </div>
-                        <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">
+                        <p className="mt-1 text-xs font-semibold text-n-dim">
                           {member?.member_code ?? "Guest / walk-in"} · {labelize(entry.settlement_type)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">Entry Time</p>
-                        <p className="mt-1 text-sm font-black text-ledger-ink">{dateTimeFormatter.format(new Date(entry.entered_at))}</p>
+                        <p className="text-xs font-semibold text-n-dim">Entry Time</p>
+                        <p className="mt-1 text-sm font-bold text-n-ink">{dateTimeFormatter.format(new Date(entry.entered_at))}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">Staff / Shift</p>
-                        <p className="mt-1 text-sm font-black text-ledger-ink">{getStaffName(entry)}</p>
-                        <p className="text-xs font-bold text-ledger-moss">Shift {entry.shift_id?.slice(0, 8) ?? "none"}</p>
+                        <p className="text-xs font-semibold text-n-dim">Staff / Shift</p>
+                        <p className="mt-1 text-sm font-bold text-n-ink">{getStaffName(entry)}</p>
+                        <p className="text-xs font-medium text-n-dim">Shift {entry.shift_id?.slice(0, 8) ?? "none"}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-ledger-moss">Payment</p>
-                        <p className="mt-1 text-sm font-black text-ledger-ink">
+                        <p className="text-xs font-semibold text-n-dim">Payment</p>
+                        <p className="mt-1 text-sm font-bold text-n-ink">
                           {payment ? `${labelize(payment.status)} · ${formatAmount(payment.amount)}` : "No payment"}
                         </p>
-                        <p className="text-xs font-bold text-ledger-moss">{payment ? labelize(payment.payment_type) : "Membership / exception"}</p>
+                        <p className="text-xs font-medium text-n-dim">{payment ? labelize(payment.payment_type) : "Membership / exception"}</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                        <span className={cn("inline-flex h-8 items-center rounded-full px-3 text-xs font-black uppercase", statusStyles[status])}>
+                        <StatusBadge tone={statusToneMap[status]}>
                           {labelize(status)}
-                        </span>
+                        </StatusBadge>
                         {exception ? (
-                          <span className="inline-flex h-8 items-center rounded-full bg-orange-50 px-3 text-xs font-black uppercase text-orange-900">
+                          <StatusBadge tone="warn">
                             {labelize(exception.status)}
-                          </span>
+                          </StatusBadge>
                         ) : null}
                       </div>
                     </div>
@@ -641,37 +643,37 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
             </div>
           ) : (
             <div className="px-5 py-16 text-center">
-              <ClipboardList aria-hidden="true" className="mx-auto size-10 text-ledger-moss" />
-              <p className="mt-4 font-black text-ledger-ink">No entries found</p>
-              <p className="mt-1 text-sm font-bold text-ledger-moss">
+              <ClipboardList aria-hidden="true" className="mx-auto size-10 text-n-dark" />
+              <p className="font-bold text-n-ink">No entries found</p>
+              <p className="mt-1 text-sm font-medium text-n-dim">
                 Adjust the date, staff, payment method, status, entry type, or search text.
               </p>
             </div>
           )}
         </Card>
 
-        <Card className="rounded-3xl shadow-none xl:sticky xl:top-28 xl:self-start">
+        <Card className="xl:sticky xl:top-28 xl:self-start">
           {selectedEntry ? (
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+                  <p className="text-xs font-semibold text-n-dim">
                     Entry Detail
                   </p>
-                  <h3 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ledger-ink">
+                  <h3 className="mt-2 text-xl font-bold sm:text-2xl text-n-ink">
                     {getPersonName(selectedEntry)}
                   </h3>
                 </div>
-                <span className={cn("inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs font-black uppercase", statusStyles[getReconciliationStatus(selectedEntry)])}>
+                <StatusBadge tone={statusToneMap[getReconciliationStatus(selectedEntry)]}>
                   {labelize(getReconciliationStatus(selectedEntry))}
-                </span>
+                </StatusBadge>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-ledger-line bg-white/65 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-ledger-moss">
+              <div className="mt-5 rounded-lg border border-n-border bg-white/65 p-4">
+                <p className="text-xs font-semibold text-n-dim">
                   Why Allowed In
                 </p>
-                <p className="mt-2 text-sm font-bold leading-6 text-ledger-ink">
+                <p className="mt-2 text-sm font-bold leading-6 text-n-ink">
                   {getAllowedReason(selectedEntry)}
                 </p>
               </div>
@@ -698,8 +700,8 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
               </div>
 
               {relatedOne(selectedEntry.exceptions)?.reason ? (
-                <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-900">
+                <div className="mt-5 rounded-lg bg-amber-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">
                     Exception Reason
                   </p>
                   <p className="mt-2 text-sm font-bold leading-6 text-amber-950">
@@ -710,12 +712,12 @@ export default async function EntryReconciliationPage({ searchParams }: EntryRec
             </div>
           ) : (
             <div className="py-8 text-center">
-              <ClipboardList aria-hidden="true" className="mx-auto size-10 text-ledger-moss" />
-              <h3 className="mt-4 font-[var(--font-heading)] text-2xl font-black text-ledger-ink">
+              <ClipboardList aria-hidden="true" className="mx-auto size-10 text-n-dark" />
+              <h3 className="mt-4 text-lg font-bold text-n-ink">
                 Open an entry
               </h3>
-              <p className="mt-2 text-sm font-bold leading-6 text-ledger-moss">
-                Select a row to see the membership, payment, pending balance, or exception reason that allowed access.
+              <p className="mt-2 text-sm font-medium leading-6 text-n-dim">
+                Select a row to see the membership, payment, utang balance, or exception reason that allowed access.
               </p>
             </div>
           )}

@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state-message";
 
 type MemberCheckInButtonProps = {
+  label?: string;
   memberId: string;
 };
 
-export function MemberCheckInButton({ memberId }: MemberCheckInButtonProps) {
+export function MemberCheckInButton({ label = "Check In", memberId }: MemberCheckInButtonProps) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -38,9 +39,9 @@ export function MemberCheckInButton({ memberId }: MemberCheckInButtonProps) {
           {serverError}
         </StateMessage>
       ) : null}
-      <Button className="min-h-14 w-full gap-2 rounded-2xl text-base sm:w-auto" disabled={isPending} onClick={onCheckIn}>
+      <Button className="min-h-14 w-full gap-2 rounded-lg text-base sm:w-auto" disabled={isPending} onClick={onCheckIn}>
         <LogIn aria-hidden="true" className="size-4" />
-        {isPending ? "Checking in..." : "Check In"}
+        {isPending ? "Checking in..." : label}
       </Button>
     </div>
   );

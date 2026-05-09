@@ -9,17 +9,17 @@ type StatusBadgeProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 const toneStyles: Record<StatusTone, string> = {
-  active: "border-green-300 bg-green-100 text-green-900",
-  danger: "border-red-300 bg-red-100 text-red-900",
-  neutral: "border-slate-300 bg-slate-100 text-slate-800",
-  warn: "border-amber-300 bg-amber-100 text-amber-950",
+  active: "border border-green-200 bg-green-50 text-green-800",
+  danger: "border border-red-200 bg-red-50 text-red-800",
+  neutral: "border border-n-border bg-n-hover text-n-dim",
+  warn: "border border-amber-200 bg-amber-50 text-amber-800",
 };
 
 export function StatusBadge({ className, tone, ...props }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-black uppercase tracking-[0.08em]",
+        "inline-flex items-center rounded-full px-3 text-xs font-semibold",
         toneStyles[tone],
         className,
       )}

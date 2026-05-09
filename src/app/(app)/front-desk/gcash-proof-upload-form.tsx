@@ -4,7 +4,7 @@ import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
-import { uploadGcashProof } from "@/app/(app)/front-desk/actions";
+import { checkGcashReferenceDuplicate, uploadGcashProof } from "@/app/(app)/front-desk/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,22 @@ export function GcashProofUploadForm({ proofId }: GcashProofUploadFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [referenceWarning, setReferenceWarning] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function checkDuplicateReference(referenceNumber: string) {
+    const cleanReference = referenceNumber.trim();
+
+    if (!cleanReference) {
+      setReferenceWarning(null);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await checkGcashReferenceDuplicate(cleanReference, proofId);
+      setReferenceWarning(result.warning ?? null);
+    });
+  }
 
   function onSubmit(formData: FormData) {
     setServerError(null);
@@ -31,6 +46,7 @@ export function GcashProofUploadForm({ proofId }: GcashProofUploadFormProps) {
         return;
       }
 
+      setReferenceWarning(result.warning ?? null);
       formRef.current?.reset();
       router.refresh();
     });
@@ -39,7 +55,7 @@ export function GcashProofUploadForm({ proofId }: GcashProofUploadFormProps) {
   return (
     <form action={onSubmit} className="grid gap-3" ref={formRef}>
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
@@ -52,8 +68,12 @@ export function GcashProofUploadForm({ proofId }: GcashProofUploadFormProps) {
             id={`gcash_reference_${proofId}`}
             maxLength={80}
             name="referenceNumber"
+            onBlur={(event) => checkDuplicateReference(event.currentTarget.value)}
             placeholder="Optional"
           />
+          {referenceWarning ? (
+            <p className="text-xs font-bold text-amber-800">{referenceWarning}</p>
+          ) : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor={`gcash_sender_${proofId}`}>Sender name</Label>
@@ -77,7 +97,7 @@ export function GcashProofUploadForm({ proofId }: GcashProofUploadFormProps) {
             required
             type="file"
           />
-          <p className="text-xs font-bold text-ledger-moss">JPEG, PNG, or WebP only. Max 5 MB.</p>
+          <p className="text-xs font-bold text-n-dark">JPEG, PNG, or WebP only. Max 5 MB.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor={`gcash_mobile_${proofId}`}>Sender mobile</Label>

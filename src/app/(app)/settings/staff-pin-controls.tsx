@@ -77,12 +77,12 @@ export function StaffPinControls({
           <PinButton hasPin={hasPin} />
         </div>
         {pinState.error ? (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
             {pinState.error}
           </p>
         ) : null}
         {pinState.message ? (
-          <p className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
+          <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
             {pinState.message}
           </p>
         ) : null}
@@ -93,12 +93,12 @@ export function StaffPinControls({
           <input name="staffProfileId" type="hidden" value={staffProfileId} />
           <DeactivateButton />
           {deactivateState.error ? (
-            <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {deactivateState.error}
             </p>
           ) : null}
           {deactivateState.message ? (
-            <p className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
+            <p className="mt-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-800">
               {deactivateState.message}
             </p>
           ) : null}

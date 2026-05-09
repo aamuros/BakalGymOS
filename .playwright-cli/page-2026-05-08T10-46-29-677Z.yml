@@ -1,0 +1,21 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: GymLedger
+        - heading "Staff login" [level=1] [ref=e14]
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Sign in with email" [level=2] [ref=e18]
+        - paragraph [ref=e19]: Use your GymLedger staff account to access your assigned modules.
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - text: Email
+          - textbox "Email" [ref=e22]
+        - generic [ref=e23]:
+          - text: Password
+          - textbox "Password" [ref=e24]
+        - button "Sign in" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+          - text: Sign in

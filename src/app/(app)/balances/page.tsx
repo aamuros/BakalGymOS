@@ -59,6 +59,18 @@ function getMemberCode(balance: BalanceListRow) {
   return member?.member_code ?? null;
 }
 
+function getShiftLabel(balance: BalanceListRow) {
+  const shift = relatedOne(balance.shifts);
+  const staffProfile = relatedOne(shift?.staff_profiles ?? null);
+  const staffProfileUser = relatedOne(staffProfile?.profiles ?? null);
+
+  if (!shift) {
+    return null;
+  }
+
+  return `${staffProfileUser?.full_name ?? "Unknown staff"}${staffProfile?.employee_code ? ` · ${staffProfile.employee_code}` : ""}`;
+}
+
 export default async function BalancesPage({ searchParams }: BalancesPageProps) {
   await requireModuleAccess("/balances");
   const params = (await searchParams) ?? {};
@@ -73,7 +85,7 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
       supabase
         .from("walk_in_balances")
         .select(
-          "id, entry_id, member_id, customer_name, amount, paid_amount, due_at, last_payment_at, settled_at, note, created_at, members(full_name, member_code), entries(entered_at)",
+          "id, entry_id, member_id, customer_name, amount, paid_amount, due_at, last_payment_at, shift_id, settled_at, note, created_at, members(full_name, member_code), entries(entered_at), created_by_profile:profiles!walk_in_balances_created_by_fkey(full_name), shifts!walk_in_balances_shift_id_fkey(id, opened_at, staff_profiles!shifts_staff_profile_id_fkey(employee_code, profiles!staff_profiles_profile_id_fkey(full_name)))",
         )
         .order("created_at", { ascending: false }),
       supabase
@@ -93,7 +105,7 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
   }
 
   const balances = (balancesData ?? []) as BalanceListRow[];
-  const latestPayments = new Map<string, BalanceHistory>();
+  const paymentHistory = new Map<string, BalanceHistory[]>();
 
   for (const payment of (paymentsData ?? []) as Array<{
     amount: number | string;
@@ -105,11 +117,11 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
     received_by_profile: { full_name: string } | { full_name: string }[] | null;
     shift_id: string | null;
   }>) {
-    if (!payment.balance_id || latestPayments.has(payment.balance_id) || !payment.paid_at) {
+    if (!payment.balance_id || !payment.paid_at) {
       continue;
     }
 
-    latestPayments.set(payment.balance_id, {
+    const historyItem = {
       amount: Number(payment.amount),
       id: payment.id,
       notes: payment.notes,
@@ -117,7 +129,9 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
       paymentMethod: payment.payment_type,
       receivedBy: relatedOne(payment.received_by_profile)?.full_name ?? null,
       shiftId: payment.shift_id,
-    });
+    };
+
+    paymentHistory.set(payment.balance_id, [...(paymentHistory.get(payment.balance_id) ?? []), historyItem]);
   }
 
   const balancesWithStatus: BalanceViewModel[] = balances.map((balance) => {
@@ -126,7 +140,9 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
     const remainingAmount = Math.max(totalAmount - paidAmount, 0);
     const effectiveStatus = getEffectiveStatus(balance, paidAmount, remainingAmount);
     const entry = relatedOne(balance.entries);
-    const latestPayment = latestPayments.get(balance.id) ?? null;
+    const history = paymentHistory.get(balance.id) ?? [];
+    const latestPayment = history[0] ?? null;
+    const recordedBy = relatedOne(balance.created_by_profile)?.full_name ?? null;
 
     return {
       createdAt: balance.created_at,
@@ -144,8 +160,12 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
       memberId: balance.member_id,
       notes: balance.note,
       paidAmount,
+      paymentHistory: history,
+      recordedBy,
       remainingAmount,
       settledAt: balance.settled_at,
+      shiftId: balance.shift_id,
+      shiftLabel: getShiftLabel(balance),
       status: effectiveStatus,
       amount: totalAmount,
     };
@@ -161,20 +181,19 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
   const overdueCount = balancesWithStatus.filter((balance) => balance.status === "overdue").length;
 
   return (
-    <div className="ledger-rise space-y-6">
-      <Card className="relative overflow-hidden rounded-3xl">
-        <div className="absolute -right-20 -top-24 size-72 rounded-full bg-ledger-lime/40 blur-3xl" />
+    <div className="page-enter space-y-6">
+      <Card className="relative overflow-hidden">
         <div className="relative max-w-4xl">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-ledger-ink text-ledger-lime">
+          <div className="flex size-14 items-center justify-center rounded-lg bg-n-hover text-n-muted">
             <HandCoins aria-hidden="true" className="size-7" />
           </div>
-          <p className="mt-7 text-sm font-black uppercase tracking-[0.24em] text-ledger-moss">
-            Balances / Utang
+          <p className="mt-7 text-xs font-semibold text-n-muted">
+            Payments & Utang
           </p>
-          <h2 className="mt-3 font-[var(--font-heading)] text-4xl font-black leading-tight text-ledger-ink sm:text-6xl">
+          <h2 className="mt-3 text-2xl font-bold leading-tight text-n-ink sm:text-3xl">
             Track unpaid balances and settle them cleanly.
           </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-ledger-moss">
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-n-dim">
             See who owes money, how long the balance has been open, and record full or partial
             settlement with staff, shift, and audit tracking.
           </p>
@@ -186,10 +205,10 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
               return (
                 <Link
                   className={cn(
-                    "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-black transition",
+                    "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-bold transition",
                     active
-                      ? "border-ledger-ink bg-ledger-ink text-ledger-paper"
-                      : "border-ledger-line bg-white/80 text-ledger-ink hover:border-ledger-moss",
+                      ? "border-n-ink bg-n-ink text-white"
+                      : "border-n-border bg-white/80 text-n-ink hover:border-n-muted/30",
                   )}
                   href={`/balances?status=${filter.value}`}
                   key={filter.value}
@@ -203,44 +222,44 @@ export default async function BalancesPage({ searchParams }: BalancesPageProps) 
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Unpaid</p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Unpaid</p>
+          <p className="mt-3 text-2xl font-bold text-n-ink">
             {unpaidCount.toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
             Open balances with no payment recorded yet.
           </p>
         </Card>
 
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">
             Partially paid
           </p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+          <p className="mt-3 text-2xl font-bold text-n-ink">
             {partialCount.toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
             Balances with some settlement on record.
           </p>
         </Card>
 
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Paid</p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Paid</p>
+          <p className="mt-3 text-2xl font-bold text-n-ink">
             {paidCount.toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
             Fully settled balances stay in the ledger for audit history.
           </p>
         </Card>
 
-        <Card className="rounded-3xl shadow-none">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-ledger-moss">Overdue</p>
-          <p className="mt-3 font-[var(--font-heading)] text-5xl font-black text-ledger-ink">
+        <Card>
+          <p className="text-xs font-semibold text-n-muted">Overdue</p>
+          <p className="mt-3 text-2xl font-bold text-n-ink">
             {overdueCount.toLocaleString("en-PH")}
           </p>
-          <p className="mt-4 text-sm font-bold leading-6 text-ledger-moss">
+          <p className="mt-4 text-sm font-medium leading-6 text-n-dim">
             Past due balances that still need collection.
           </p>
         </Card>

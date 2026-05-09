@@ -6,15 +6,19 @@ import {
   exceptionTypeSettingsSchema,
   gymProfileSchema,
   membershipRateSchema,
+  operationalSettingsSchema,
   paymentSettingsSchema,
   rolePermissionSchema,
   staffAccessSchema,
+  walkInRateSchema,
   type ExceptionTypeSettingsValues,
   type GymProfileValues,
   type MembershipRateValues,
+  type OperationalSettingsValues,
   type PaymentSettingsValues,
   type RolePermissionValues,
   type StaffAccessValues,
+  type WalkInRateValues,
 } from "@/app/(app)/settings/schema";
 import { canManageSystemSettings } from "@/lib/auth/permissions";
 import { requireModuleAccess } from "@/lib/auth/server";
@@ -319,6 +323,67 @@ export async function saveStaffAccess(input: StaffAccessValues): Promise<ActionR
     return { message: "Staff access saved." };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Unable to save staff access." };
+  }
+}
+
+export async function saveWalkInRate(input: WalkInRateValues): Promise<ActionResult> {
+  try {
+    await requireSettingsManager();
+    const parsed = walkInRateSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return { error: firstError(parsed.error) };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("update_admin_setting", {
+      p_description: "Default walk-in entry rate.",
+      p_key: "walk_in_rate",
+      p_note: "Walk-in rate changed",
+      p_value: parsed.data,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/settings");
+    revalidatePath("/front-desk");
+
+    return { message: "Walk-in rate saved." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Unable to save walk-in rate." };
+  }
+}
+
+export async function saveOperationalSettings(input: OperationalSettingsValues): Promise<ActionResult> {
+  try {
+    await requireSettingsManager();
+    const parsed = operationalSettingsSchema.safeParse(input);
+
+    if (!parsed.success) {
+      return { error: firstError(parsed.error) };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("update_admin_setting", {
+      p_description: "Controls for utang, warnings, and membership grace period.",
+      p_key: "operational_settings",
+      p_note: "Operational settings changed",
+      p_value: parsed.data,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/settings");
+    revalidatePath("/front-desk");
+    revalidatePath("/balances");
+
+    return { message: "Operational settings saved." };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Unable to save operational settings." };
   }
 }
 

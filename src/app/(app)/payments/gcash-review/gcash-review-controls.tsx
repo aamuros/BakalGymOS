@@ -18,8 +18,8 @@ type GcashReviewControlsProps = {
 };
 
 const actions = [
-  { icon: Check, label: "Confirm", value: "confirm", variant: "primary" },
-  { icon: AlertTriangle, label: "Dispute", value: "dispute", variant: "secondary" },
+  { icon: Check, label: "Verify", value: "verify", variant: "primary" },
+  { icon: AlertTriangle, label: "Reject", value: "reject", variant: "secondary" },
   { icon: MessageSquareMore, label: "Follow up", value: "follow_up", variant: "ghost" },
 ] as const;
 
@@ -54,7 +54,7 @@ export function GcashReviewControls({
   return (
     <div className="space-y-3">
       {serverError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {serverError}
         </div>
       ) : null}
@@ -62,14 +62,14 @@ export function GcashReviewControls({
       <div className="space-y-2">
         <Label htmlFor={`gcash_owner_note_${proofId}`}>Owner note</Label>
         <textarea
-          className="min-h-20 w-full rounded-2xl border border-ledger-line bg-white/85 px-4 py-3 text-sm font-bold text-ledger-ink outline-none transition placeholder:text-ledger-moss/50 focus:border-ledger-moss focus:ring-4 focus:ring-ledger-lime/35"
+          className="min-h-20 w-full rounded-lg border border-n-border bg-white/85 px-4 py-3 text-sm font-bold text-n-ink outline-none transition placeholder:text-n-dark/50 focus:border-n-focus focus:ring-4 focus:ring-n-focus/20"
           id={`gcash_owner_note_${proofId}`}
           maxLength={1000}
           onChange={(event) => setNote(event.target.value)}
           placeholder="Optional review note"
           value={note}
         />
-        <p className="text-xs font-bold text-ledger-moss">{note.length}/1000 characters</p>
+        <p className="text-xs font-bold text-n-dark">{note.length}/1000 characters</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -77,9 +77,9 @@ export function GcashReviewControls({
           const Icon = item.icon;
           const disabled =
             isPending ||
-            (item.value === "confirm" && status === "owner_confirmed") ||
-            (item.value === "dispute" && status === "disputed") ||
-            (item.value === "follow_up" && status === "needs_follow_up");
+            (item.value === "verify" && status === "verified") ||
+            (item.value === "reject" && status === "rejected") ||
+            (item.value === "follow_up" && status === "follow_up");
 
           return (
             <Button

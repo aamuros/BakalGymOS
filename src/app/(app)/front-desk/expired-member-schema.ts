@@ -12,6 +12,7 @@ export const expiredMemberActionSchema = z
       .number({ error: "Amount is required." })
       .max(999999.99, "Amount is too large.")
       .optional(),
+    gcash_reference_number: z.string().trim().max(80, "Reference number is too long.").optional(),
     payment_method: z.enum(expiredMemberPaymentMethods, {
       error: "Choose a valid payment method.",
     }),

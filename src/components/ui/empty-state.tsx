@@ -23,16 +23,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-2xl border border-dashed border-ledger-line bg-white/60 px-5 text-center",
+        "flex flex-col items-center rounded-lg border border-dashed border-n-border bg-white/60 px-5 text-center",
         compact ? "py-8" : "py-12",
         className,
       )}
     >
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-ledger-lime/55 text-ledger-ink">
+      <span className="flex size-12 items-center justify-center rounded-lg bg-n-hover text-n-muted">
         {icon ?? <ClipboardList aria-hidden="true" className="size-6" />}
       </span>
-      <p className="mt-4 text-lg font-black text-ledger-ink">{title}</p>
-      <p className="mt-1 max-w-md text-sm font-bold leading-6 text-ledger-moss">{body}</p>
+      <p className="mt-4 text-lg font-semibold text-n-ink">{title}</p>
+      <p className="mt-1 max-w-md text-sm leading-6 text-n-dim">{body}</p>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
